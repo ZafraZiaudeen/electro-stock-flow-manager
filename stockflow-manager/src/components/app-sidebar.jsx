@@ -62,7 +62,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
     {
       title: "Dashboard",
       icon: BarChart3,
-      url: "/dashboard",
+      url: "/",
       key: "dashboard",
     },
     {

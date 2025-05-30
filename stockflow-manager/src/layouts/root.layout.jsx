@@ -5,6 +5,7 @@ import { useEffect } from "react";
 // Map routes to page titles
 const pageTitles = {
   "/": "Dashboard",
+  "/inventory/opening-stock":"Opening Stock",
 };
 
 export default function RootLayout() {
