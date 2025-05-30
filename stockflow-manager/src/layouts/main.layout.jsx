@@ -1,59 +1,55 @@
 import { Outlet, useLocation } from "react-router";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { Button } from "@/components/ui/button";
-import { User, ChevronDown } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Import Avatar components
+import { useUser } from "@clerk/clerk-react"; // Import useUser from Clerk
 
 // Map routes to page titles
 const pageTitles = {
   "/": "Dashboard",
   "/purchase-entry": "Purchase Entry",
-  "/inventory/opening-stock":"Opening Stock",
+  "/inventory/opening-stock": "Opening Stock",
+  "/grn-management": "GRN Management",
 };
 
 export default function MainLayout() {
   const location = useLocation();
   const pathname = location.pathname;
+  const { user, isLoaded } = useUser(); // Get user data
 
   // Get the page title based on the current route
   const pageTitle = pageTitles[pathname] || "Inventory Pro";
+
+  if (!isLoaded) {
+    return null; // Or a loading spinner
+  }
+
+  // Get user display name and initials
+  const userName = user?.fullName || user?.firstName || "Admin User";
+  const userInitials = userName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        {/* Header with SidebarTrigger, page-specific title, and user dropdown */}
+        {/* Header with SidebarTrigger, page-specific title, and user avatar with name */}
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-col">
             <h1 className="text-lg font-semibold">{pageTitle}</h1>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <User className="h-4 w-4 mr-2" />
-                  Admin
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Logout</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user?.imageUrl || "/placeholder.svg?height=32&width=32"} alt={userName} />
+              <AvatarFallback className="rounded-full bg-blue-100 text-blue-600">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium">{userName}</span>
           </div>
         </header>
         {/* Main content area */}
