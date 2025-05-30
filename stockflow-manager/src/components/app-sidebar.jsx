@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import {
   Package,
@@ -14,6 +12,7 @@ import {
   LogOut,
   ChevronRight,
 } from "lucide-react"
+import { Link } from "react-router-dom"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -62,13 +61,13 @@ export function AppSidebar({ activeItem = "dashboard" }) {
     {
       title: "Dashboard",
       icon: BarChart3,
-      url: "/dashboard",
+      url: "/",
       key: "dashboard",
     },
     {
-      title: "Purchase",
+      title: "Purchase Entry",
       icon: ShoppingCart,
-      url: "/purchase",
+      url: "/purchase-entry",
       key: "purchase",
       badge: "New",
     },
@@ -184,7 +183,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
                     isActive={activeItem === item.key}
                     tooltip={state === "collapsed" ? item.title : undefined}
                   >
-                    <a href={item.url}>
+                    <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
                       {item.badge && state === "expanded" && (
@@ -192,7 +191,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
                           {item.badge}
                         </Badge>
                       )}
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -220,14 +219,14 @@ export function AppSidebar({ activeItem = "dashboard" }) {
                   {inventoryItems.map((item) => (
                     <SidebarMenuSubItem key={item.key}>
                       <SidebarMenuSubButton asChild isActive={activeItem === item.key}>
-                        <a href={item.url}>
+                        <Link to={item.url}>
                           <span>{item.title}</span>
                           {item.badge && (
                             <Badge variant="destructive" className="ml-auto text-xs">
                               {item.badge}
                             </Badge>
                           )}
-                        </a>
+                        </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   ))}
@@ -257,9 +256,9 @@ export function AppSidebar({ activeItem = "dashboard" }) {
                   {reportItems.map((item) => (
                     <SidebarMenuSubItem key={item.key}>
                       <SidebarMenuSubButton asChild isActive={activeItem === item.key}>
-                        <a href={item.url}>
+                        <Link to={item.url}>
                           <span>{item.title}</span>
-                        </a>
+                        </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   ))}
@@ -281,10 +280,10 @@ export function AppSidebar({ activeItem = "dashboard" }) {
                     isActive={activeItem === item.key}
                     tooltip={state === "collapsed" ? item.title : undefined}
                   >
-                    <a href={item.url}>
+                    <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
