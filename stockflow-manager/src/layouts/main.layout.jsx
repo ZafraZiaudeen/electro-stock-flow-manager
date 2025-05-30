@@ -15,6 +15,7 @@ import {
 // Map routes to page titles
 const pageTitles = {
   "/": "Dashboard",
+  "/purchase-entry": "Purchase Entry",
   "/inventory/opening-stock":"Opening Stock",
 };
 
