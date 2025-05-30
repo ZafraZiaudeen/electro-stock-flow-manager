@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
-import * as XLSX from "xlsx";
+import readXlsxFile from "read-excel-file";
 
 export default function OpeningStockEntry() {
   const [items, setItems] = useState([
@@ -20,11 +20,34 @@ export default function OpeningStockEntry() {
       quantity: 0,
     },
   ]);
+  const [processing, setProcessing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Calculate pagination details
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = items.slice(startIndex, endIndex);
+
+  // Handle page navigation
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   // Handle manual input changes
   const handleInputChange = (index, field, value) => {
     const updatedItems = [...items];
-    updatedItems[index][field] = value;
+    const globalIndex = startIndex + index; // Adjust index for the full items array
+    updatedItems[globalIndex][field] = value;
     setItems(updatedItems);
   };
 
@@ -46,8 +69,13 @@ export default function OpeningStockEntry() {
 
   // Remove a row
   const removeRow = (index) => {
-    const updatedItems = items.filter((_, i) => i !== index);
+    const globalIndex = startIndex + index; // Adjust index for the full items array
+    const updatedItems = items.filter((_, i) => i !== globalIndex);
     setItems(updatedItems);
+    // Adjust current page if necessary
+    if (paginatedItems.length === 1 && currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
   };
 
   // Handle Excel file upload
@@ -55,50 +83,102 @@ export default function OpeningStockEntry() {
     const file = event.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    setProcessing(true);
 
-      // Validate headers
-      const requiredHeaders = [
-        "Part Number",
-        "Make/Company",
-        "Description",
-        "Unit",
-        "Packing",
-        "Unit Price",
-        "Quantity",
-      ];
-      const headers = Object.keys(jsonData[0] || {});
-      const hasRequiredHeaders = requiredHeaders.every((header) =>
-        headers.includes(header)
-      );
-
-      if (!hasRequiredHeaders) {
-        alert(
-          "Excel file must contain the following headers: Part Number, Make/Company, Description, Unit, Packing, Unit Price, Quantity"
-        );
+    readXlsxFile(file).then((rows) => {
+      // Check if rows contain data
+      if (!rows || rows.length <= 1) {
+        alert("The Excel file is empty or has no data.");
+        setProcessing(false);
         return;
       }
 
-      // Map Excel data to table format
-      const mappedData = jsonData.map((row) => ({
-        partNumber: row["Part Number"] || "",
-        makeCompany: row["Make/Company"] || "",
-        description: row["Description"] || "",
-        unit: row["Unit"] || "Pieces",
-        packing: parseInt(row["Packing"]) || 1,
-        unitPrice: parseFloat(row["Unit Price"]) || 0,
-        quantity: parseInt(row["Quantity"]) || 0,
-      }));
+      // Headers are the first row
+      const headers = rows[0].map((header) => header?.toString().trim().toLowerCase());
+      console.log("Excel Headers:", headers); // Debug log to inspect headers
 
+      // Define expected headers with possible variations
+      const headerMapping = {
+        partNumber: ["part number", "partnumber", "part no", "partno", "pn", "item number"],
+        makeCompany: ["make/company", "makecompany", "make", "company", "manufacturer", "brand", "vendor", "supplier", "make company name"],
+        description: ["description", "desc", "details", "item description", "product description", "item details", "product details"],
+        unit: ["unit", "uom", "unit of measure", "measurement"],
+        packing: ["packing", "pack", "pack size", "package", "pkg"],
+        unitPrice: ["unit price", "unitprice", "price", "cost", "rate"],
+        quantity: ["quantity", "qty", "amount", "stock", "count", "number", "total", "no of units"],
+      };
+
+      // Map Excel headers to internal field names
+      const headerIndices = {};
+      Object.keys(headerMapping).forEach((field) => {
+        const variations = headerMapping[field];
+        const foundHeader = headers.find((header) =>
+          variations.includes(header)
+        );
+        if (foundHeader) {
+          headerIndices[field] = headers.indexOf(foundHeader);
+        }
+      });
+
+      // Validate required headers
+      const requiredFields = ["partNumber", "unit", "packing", "unitPrice"];
+      const missingRequiredHeaders = requiredFields.filter(
+        (field) => headerIndices[field] === undefined
+      );
+      if (missingRequiredHeaders.length > 0) {
+        alert(
+          `Excel file is missing the following required headers: ${missingRequiredHeaders.join(", ")}. Expected headers (case-insensitive): Part Number, Make Company Name, Item Description, Unit, Packing, Unit Price, No of Units`
+        );
+        setProcessing(false);
+        return;
+      }
+
+      // Log optional headers that are missing
+      const optionalFields = ["makeCompany", "description", "quantity"];
+      const missingOptionalHeaders = optionalFields.filter(
+        (field) => headerIndices[field] === undefined
+      );
+      if (missingOptionalHeaders.length > 0) {
+        console.log("Optional headers missing (using defaults):", missingOptionalHeaders);
+      }
+
+      // Unit mapping from Excel abbreviations to dropdown values
+      const unitMapping = {
+        "pcs": "Pieces",
+        "pkt": "Packets",
+        "roll": "ROLL",
+        "box": "Boxes",
+        "pack": "PACK",
+        "set": "SET",
+      };
+
+      // Map rows to items (skip header row)
+      const mappedData = rows.slice(1).map((row) => {
+        const unitValue = row[headerIndices.unit]?.toString().trim().toLowerCase();
+        const selectedUnit = unitMapping[unitValue] || (unitValue && !Object.keys(unitMapping).includes(unitValue) ? unitValue : "Pieces");
+        return {
+          partNumber: row[headerIndices.partNumber]?.toString() || "",
+          makeCompany: headerIndices.makeCompany !== undefined ? row[headerIndices.makeCompany]?.toString() || "" : "",
+          description: headerIndices.description !== undefined ? row[headerIndices.description]?.toString() || "" : "",
+          unit: selectedUnit,
+          packing: parseInt(row[headerIndices.packing]) || 1,
+          unitPrice: parseFloat(row[headerIndices.unitPrice]) || 0,
+          quantity: headerIndices.quantity !== undefined ? parseInt(row[headerIndices.quantity]) || 0 : 0,
+        };
+      });
+
+      if (mappedData.some(item => !Object.values(unitMapping).includes(item.unit) && item.unit !== "Pieces")) {
+        console.log("Warning: Some unit values from Excel were not recognized or mapped. Valid mappings are: PCS->Pieces, PKT->Packets, ROLL->ROLL, BOX->Boxes, PACK->PACK, SET->SET. Unmapped units default to 'Pieces'.");
+      }
+
+      console.log("Parsed Excel Data:", mappedData); // Debug log
       setItems(mappedData);
-    };
-    reader.readAsArrayBuffer(file);
+      setCurrentPage(1); // Reset to first page after upload
+      setProcessing(false);
+    }).catch((error) => {
+      alert("Error parsing Excel file: " + error.message);
+      setProcessing(false);
+    });
   };
 
   // Handle save items (simulated)
@@ -109,36 +189,39 @@ export default function OpeningStockEntry() {
 
   return (
     <>
-      
-
       {/* Import from Excel Section */}
-      <div className="mb-8 p-6 bg-white rounded-lg shadow-sm border w-11/12">
+      <div className="mb-8 p-6 bg-white rounded-lg shadow-sm border">
         <h2 className="text-lg font-semibold mb-4">Import from Excel</h2>
         <div className="flex items-center gap-4 mb-2">
           <Input
             type="file"
             accept=".xlsx, .xls"
             onChange={handleFileUpload}
-            className="w-64"
+            className="w-full max-w-xs"
+            disabled={processing}
           />
-          <Button variant="outline" className="bg-gray-100">
-            Upload Excel
+          <Button
+            variant="outline"
+            className="bg-gray-100"
+            disabled={processing}
+          >
+            {processing ? "Processing..." : "Upload Excel"}
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          Excel file should contain columns with these headers (or similar names): Part Number, Make/Company, Description, Unit, Packing, Unit Price, Quantity
+          Excel file should contain columns with these headers (case-insensitive): Part Number, Make Company Name, Item Description, Unit, Packing, Unit Price, No of Units
         </p>
       </div>
 
       {/* Manual Entry Section */}
-      <div className="p-6 bg-white rounded-lg shadow-sm border w-11/12">
+      <div className="p-6 bg-white rounded-lg shadow-sm border">
         <h2 className="text-lg font-semibold mb-4">Manual Entry</h2>
-        <div className="overflow-x-auto w-11/12">
+        <div className="overflow-x-hidden">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Part Number</TableHead>
-                <TableHead>Make/Company</TableHead>
+                <TableHead>Make Company</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead>Packing</TableHead>
@@ -148,57 +231,59 @@ export default function OpeningStockEntry() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell>
+              {paginatedItems.map((item, index) => (
+                <TableRow key={startIndex + index}>
+                  <TableCell className="min-w-0">
                     <Input
                       value={item.partNumber}
                       onChange={(e) =>
                         handleInputChange(index, "partNumber", e.target.value)
                       }
                       placeholder="Part No."
-                      className="w-32"
+                      className="w-full"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-0">
                     <Input
                       value={item.makeCompany}
                       onChange={(e) =>
                         handleInputChange(index, "makeCompany", e.target.value)
                       }
                       placeholder="Company"
-                      className="w-32"
+                      className="w-full"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-0">
                     <Input
                       value={item.description}
                       onChange={(e) =>
                         handleInputChange(index, "description", e.target.value)
                       }
                       placeholder="Description"
-                      className="w-48"
+                      className="w-full"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-0">
                     <Select
                       value={item.unit}
                       onValueChange={(value) =>
                         handleInputChange(index, "unit", value)
                       }
                     >
-                      <SelectTrigger className="w-32">
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Pieces">Pieces</SelectItem>
-                        <SelectItem value="Boxes">Boxes</SelectItem>
                         <SelectItem value="Packets">Packets</SelectItem>
-                        <SelectItem value="Each">Each</SelectItem>
+                        <SelectItem value="ROLL">ROLL</SelectItem>
+                        <SelectItem value="Boxes">Boxes</SelectItem>
+                        <SelectItem value="PACK">PACK</SelectItem>
+                        <SelectItem value="SET">SET</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-0">
                     <Input
                       type="number"
                       value={item.packing}
@@ -209,10 +294,10 @@ export default function OpeningStockEntry() {
                           parseInt(e.target.value) || 0
                         )
                       }
-                      className="w-24"
+                      className="w-full"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-0">
                     <Input
                       type="number"
                       value={item.unitPrice}
@@ -223,10 +308,10 @@ export default function OpeningStockEntry() {
                           parseFloat(e.target.value) || 0
                         )
                       }
-                      className="w-24"
+                      className="w-full"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-0">
                     <Input
                       type="number"
                       value={item.quantity}
@@ -237,10 +322,10 @@ export default function OpeningStockEntry() {
                           parseInt(e.target.value) || 0
                         )
                       }
-                      className="w-24"
+                      className="w-full"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="min-w-0">
                     <Button
                       variant="destructive"
                       size="sm"
@@ -255,6 +340,30 @@ export default function OpeningStockEntry() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination Controls */}
+        {items.length > itemsPerPage && (
+          <div className="flex justify-between items-center mt-4">
+            <Button
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800"
+            >
+              Previous
+            </Button>
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800"
+            >
+              Next
+            </Button>
+          </div>
+        )}
+
         <div className="flex justify-between mt-4">
           <Button onClick={addRow} className="bg-blue-600 hover:bg-blue-700">
             Add Row
