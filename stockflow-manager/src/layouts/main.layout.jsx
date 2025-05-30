@@ -15,6 +15,7 @@ import {
 // Map routes to page titles
 const pageTitles = {
   "/": "Dashboard",
+  "/purchase-entry": "Purchase Entry",
 };
 
 export default function MainLayout() {
