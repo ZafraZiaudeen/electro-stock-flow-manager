@@ -14,6 +14,7 @@ import AdminProtectedLayout from "./layouts/admin-protected.layout";
 import SignInPage from "./pages/sign-in.page";
 import SignUpPage from "./pages/sign-up.page";
 import GRNManagement from "./pages/grn-management.page";
+import Return from "./pages/return.page";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -34,6 +35,7 @@ createRoot(document.getElementById("root")).render(
                   <Route path="/purchase-entry" element={<PurchaseEntry />} />
                   <Route path="/inventory/opening-stock" element={<OpeningStockEntry />} />
                   <Route path="/grn-management" element={<GRNManagement />} />
+                  <Route path="/returns" element={<Return />} />
                 </Route>
               </Route>
             </Route>

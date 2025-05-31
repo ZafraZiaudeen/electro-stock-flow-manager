@@ -7,6 +7,8 @@ const pageTitles = {
   "/": "Dashboard",
   "/purchase-entry": "Purchase Entry",
   "/inventory/opening-stock": "Opening Stock",
+  "/grn-management": "GRN Management",
+  "/returns": "Returns",
 };
 
 export default function RootLayout() {
