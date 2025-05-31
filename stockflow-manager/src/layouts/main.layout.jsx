@@ -1,12 +1,11 @@
-import { Outlet, useLocation } from "react-router";
+import { Outlet, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Import Avatar components
-import { useUser } from "@clerk/clerk-react"; // Import useUser from Clerk
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser } from "@clerk/clerk-react";
 
-// Map routes to page titles
 const pageTitles = {
-  "/": "Dashboard",
+  "/dashboard": "Dashboard",
   "/purchase-entry": "Purchase Entry",
   "/inventory/opening-stock": "Opening Stock",
   "/grn-management": "GRN Management",
@@ -15,16 +14,14 @@ const pageTitles = {
 export default function MainLayout() {
   const location = useLocation();
   const pathname = location.pathname;
-  const { user, isLoaded } = useUser(); // Get user data
+  const { user, isLoaded } = useUser();
 
-  // Get the page title based on the current route
   const pageTitle = pageTitles[pathname] || "Inventory Pro";
 
   if (!isLoaded) {
-    return null; // Or a loading spinner
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
-  // Get user display name and initials
   const userName = user?.fullName || user?.firstName || "Admin User";
   const userInitials = userName
     .split(" ")
@@ -36,7 +33,6 @@ export default function MainLayout() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        {/* Header with SidebarTrigger, page-specific title, and user avatar with name */}
         <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-6">
           <SidebarTrigger className="-ml-1" />
           <div className="flex flex-col">
@@ -52,7 +48,6 @@ export default function MainLayout() {
             <span className="text-sm font-medium">{userName}</span>
           </div>
         </header>
-        {/* Main content area */}
         <main className="flex-1 overflow-auto p-6">
           <Outlet />
         </main>

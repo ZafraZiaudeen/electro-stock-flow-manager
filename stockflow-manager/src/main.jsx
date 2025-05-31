@@ -14,7 +14,7 @@ import AdminProtectedLayout from "./layouts/admin-protected.layout";
 import SignInPage from "./pages/sign-in.page";
 import SignUpPage from "./pages/sign-up.page";
 import GRNManagement from "./pages/grn-management.page";
-
+import HomePage from "./pages/home.page";
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!PUBLISHABLE_KEY) {
@@ -27,18 +27,22 @@ createRoot(document.getElementById("root")).render(
       <BrowserRouter>
         <Routes>
           <Route element={<RootLayout />}>
-            <Route element={<MainLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/sign-in" element={<SignInPage />} />
+            <Route path="/sign-up" element={<SignUpPage />} />
+            
               <Route element={<ProtectedLayout />}>
-                <Route element={<AdminProtectedLayout />}>
-                  <Route path="/" element={<Dashboard />} />
+              <Route element={<AdminProtectedLayout />}>
+              <Route element={<MainLayout />}>
+                
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/purchase-entry" element={<PurchaseEntry />} />
                   <Route path="/inventory/opening-stock" element={<OpeningStockEntry />} />
                   <Route path="/grn-management" element={<GRNManagement />} />
                 </Route>
               </Route>
             </Route>
-            <Route path="/sign-in" element={<SignInPage />} />
-            <Route path="/sign-up" element={<SignUpPage />} />
+            
           </Route>
         </Routes>
       </BrowserRouter>

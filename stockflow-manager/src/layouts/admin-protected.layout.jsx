@@ -1,18 +1,21 @@
 import { useUser } from "@clerk/clerk-react";
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 const AdminProtectedLayout = () => {
   const { user, isLoaded } = useUser();
+  const location = useLocation();
 
   if (!isLoaded) {
-    return null; 
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
-  if (!user || user.publicMetadata.role !== "admin") {
-    return <Navigate to="/" replace />;
+  // Allow access if user is an admin
+  if (user && user.publicMetadata.role === "admin") {
+    return <Outlet />;
   }
 
-  return <Outlet />;
+  // Redirect non-admins to the home page, preserving the intended route as state
+  return <Navigate to="/" state={{ from: location.pathname }} replace />;
 };
 
 export default AdminProtectedLayout;

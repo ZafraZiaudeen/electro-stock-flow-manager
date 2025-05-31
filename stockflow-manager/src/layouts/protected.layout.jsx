@@ -1,15 +1,17 @@
 import { useUser } from "@clerk/clerk-react";
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 const ProtectedLayout = () => {
   const { isLoaded, isSignedIn } = useUser();
+  const location = useLocation();
 
   if (!isLoaded) {
-    return null;
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
   if (!isSignedIn) {
-    return <Navigate to="/sign-in" replace />;
+    // Redirect to sign-in, preserving the intended route
+    return <Navigate to="/sign-in" state={{ from: location.pathname }} replace />;
   }
 
   return <Outlet />;

@@ -1,18 +1,22 @@
-import { Outlet } from "react-router";
-import { useLocation } from "react-router";
+import { Outlet } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import { useUser } from "@clerk/clerk-react"; 
+import { useUser } from "@clerk/clerk-react";
 
 const pageTitles = {
-  "/": "Dashboard",
+  "/": "Home",
+  "/sign-in": "Sign-In",
+  "/sign-up": "Sign-Up",
+  "/dashboard": "Dashboard",
   "/purchase-entry": "Purchase Entry",
   "/inventory/opening-stock": "Opening Stock",
+  "/grn-management": "GRN Management",
 };
 
 export default function RootLayout() {
   const location = useLocation();
   const pathname = location.pathname;
-  const { isLoaded } = useUser(); // Get loading state from Clerk
+  const { isLoaded } = useUser();
 
   const pageTitle = pageTitles[pathname] || "Inventory Pro";
 
@@ -22,9 +26,8 @@ export default function RootLayout() {
     }
   }, [pageTitle, isLoaded]);
 
-  // Show a loading state until Clerk's user data is loaded
   if (!isLoaded) {
-    return null; // Or you can return a loading spinner: <div>Loading...</div>
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
   return <Outlet />;
