@@ -74,7 +74,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       icon: ShoppingCart,
       url: "/purchase-entry",
       key: "purchase",
-      badge: "New",
+      // badge: "New",
     },
      {
       title: "GRN Management",
@@ -87,6 +87,18 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       icon: ArrowUpRight,
       url: "/issue",
       key: "issue",
+    },
+    {
+      title: "Returns",
+      icon: Truck,
+      url: "/returns",
+      key: "returns",
+    },
+     {
+      title: "Projects",
+      icon: Truck,
+      url: "/projects",
+      key: "projects",
     },
     {
       title: "Suppliers",
