@@ -9,7 +9,7 @@ import Dashboard from "./pages/dashboard.page";
 import MainLayout from "./layouts/main.layout";
 import PurchaseEntry from "./pages/purchase-entry.page";
 import OpeningStockEntry from "./pages/inventory/opening-stock.page";
-import ProtectedLayout from "./layouts/protected.layout";
+
 import AdminProtectedLayout from "./layouts/admin-protected.layout";
 import SignInPage from "./pages/sign-in.page";
 import SignUpPage from "./pages/sign-up.page";
@@ -34,7 +34,6 @@ createRoot(document.getElementById("root")).render(
           <Route path="/sign-in" element={<SignInPage />} />
             <Route path="/sign-up" element={<SignUpPage />} />
             
-              <Route element={<ProtectedLayout />}>
               <Route element={<AdminProtectedLayout />}>
               <Route element={<MainLayout />}>
                 
@@ -44,7 +43,6 @@ createRoot(document.getElementById("root")).render(
                   <Route path="/grn-management" element={<GRNManagement />} />
                   <Route path="/returns" element={<Return />} />
                   <Route path="/projects" element={<ProjectsManagement/>} />
-                </Route>
               </Route>
             </Route>
             
