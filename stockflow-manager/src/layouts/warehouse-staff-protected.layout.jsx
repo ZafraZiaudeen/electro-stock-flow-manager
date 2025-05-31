@@ -1,34 +1,10 @@
-import { Outlet } from "react-router-dom";
-import { useLocation } from "react-router-dom";
-import { useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Package } from "lucide-react";
 
-const pageTitles = {
-  "/": "Home",
-  "/sign-in": "Sign-In",
-  "/sign-up": "Sign-Up",
-  "/dashboard": "Dashboard",
-  "/purchase-entry": "Purchase Entry",
-  "/inventory/opening-stock": "Opening Stock",
-  "/grn-management": "GRN Management",
-  "/returns": "Returns",
-  "/projects": "Projects Management",
-  "/user-management": "User Management",
-};
-
-export default function RootLayout() {
+const WarehouseStaffProtectedLayout = () => {
+  const { user, isLoaded } = useUser();
   const location = useLocation();
-  const pathname = location.pathname;
-  const { isLoaded } = useUser();
-
-  const pageTitle = pageTitles[pathname] || "Inventory Pro";
-
-  useEffect(() => {
-    if (isLoaded) {
-      document.title = pageTitle;
-    }
-  }, [pageTitle, isLoaded]);
 
   if (!isLoaded) {
     return (
@@ -48,5 +24,11 @@ export default function RootLayout() {
     );
   }
 
-  return <Outlet />;
-}
+  if (user && (user.publicMetadata.role === "warehouse_staff" || user.publicMetadata.role === "admin")) {
+    return <Outlet />;
+  }
+
+  return <Navigate to="/" state={{ from: location.pathname }} replace />;
+};
+
+export default WarehouseStaffProtectedLayout;
