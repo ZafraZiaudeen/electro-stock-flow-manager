@@ -94,6 +94,12 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       url: "/returns",
       key: "returns",
     },
+     {
+      title: "Projects",
+      icon: Truck,
+      url: "/projects",
+      key: "projects",
+    },
     {
       title: "Suppliers",
       icon: Truck,
