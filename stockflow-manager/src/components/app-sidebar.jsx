@@ -13,8 +13,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useUser, useClerk } from "@clerk/clerk-react"; // Import Clerk hooks
-
+import { useUser, useClerk } from "@clerk/clerk-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -49,8 +48,6 @@ export function AppSidebar({ activeItem = "dashboard" }) {
     inventory: false,
     reports: false,
   });
-
-  // Use Clerk hooks to get user info and sign-out functionality
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
 
@@ -59,6 +56,48 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       ...prev,
       [section]: !prev[section],
     }));
+  };
+
+  // Loading state with animated afastlogo
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="flex aspect-square size-12 items-center justify-center rounded-lg bg-blue-600 text-white animate-pulse">
+              <Package className="size-6" />
+            </div>
+            <div className="absolute inset-0 rounded-lg bg-blue-600/30 animate-ping" />
+          </div>
+          <div className="grid text-center text-sm leading-tight">
+            <span className="truncate font-semibold text-gray-800">Inventory Pro</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Role-based permissions for navigation items
+  const userRole = user?.publicMetadata.role || "viewer"; // Default to viewer if role is undefined
+  const rolePermissions = {
+    admin: {
+      main: ["dashboard", "purchase", "grn-management", "issue", "returns", "projects", "suppliers"],
+      inventory: ["inventory-all", "inventory-low-stock", "inventory-categories", "inventory-opening"],
+      reports: ["reports-stock", "reports-purchase", "reports-issue", "reports-project"],
+      management: ["users", "settings"],
+    },
+    warehouse_staff: {
+      main: ["dashboard", "purchase", "grn-management", "issue", "returns", "projects", "suppliers"],
+      inventory: [], 
+      reports: [], 
+      management: [], 
+    },
+    viewer: {
+      main: ["dashboard"],
+      inventory: [], // Viewers cannot access inventory sub-items
+      reports: ["reports-stock", "reports-purchase", "reports-issue", "reports-project"],
+      management: [], // Viewers cannot access management
+    },
   };
 
   // Navigation items
@@ -74,9 +113,8 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       icon: ShoppingCart,
       url: "/purchase-entry",
       key: "purchase",
-      // badge: "New",
     },
-     {
+    {
       title: "GRN Management",
       icon: ArrowUpRight,
       url: "/grn-management",
@@ -94,7 +132,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       url: "/returns",
       key: "returns",
     },
-     {
+    {
       title: "Projects",
       icon: Truck,
       url: "/projects",
@@ -106,7 +144,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       url: "/suppliers",
       key: "suppliers",
     },
-  ];
+  ].filter((item) => rolePermissions[userRole].main.includes(item.key));
 
   const inventoryItems = [
     {
@@ -130,7 +168,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       url: "/inventory/opening-stock",
       key: "inventory-opening",
     },
-  ];
+  ].filter((item) => rolePermissions[userRole].inventory.includes(item.key));
 
   const reportItems = [
     {
@@ -153,13 +191,13 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       url: "/reports/project",
       key: "reports-project",
     },
-  ];
+  ].filter((item) => rolePermissions[userRole].reports.includes(item.key));
 
   const managementItems = [
     {
       title: "Users",
       icon: Users,
-      url: "/users",
+      url: "/user-management",
       key: "users",
     },
     {
@@ -168,22 +206,16 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       url: "/settings",
       key: "settings",
     },
-  ];
+  ].filter((item) => rolePermissions[userRole].management.includes(item.key));
 
   // Handle sign-out with Clerk
   const handleSignOut = async () => {
     await signOut();
-    // Optionally, redirect after sign-out (handled by ProtectedLayout in your app)
   };
 
-  // Ensure user data is loaded before rendering user info
-  if (!isLoaded) {
-    return null; // Or a loading spinner
-  }
-
   // Get user display name and email
-  const userName = user?.fullName || user?.firstName || "Admin User";
-  const userEmail = user?.primaryEmailAddress?.emailAddress || "admin@company.com";
+  const userName = user?.fullName || user?.firstName || "User";
+  const userEmail = user?.primaryEmailAddress?.emailAddress || "user@company.com";
   const userInitials = userName
     .split(" ")
     .map((n) => n[0])
@@ -215,125 +247,133 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       {/* Sidebar Content */}
       <SidebarContent>
         {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={activeItem === item.key}
-                    tooltip={state === "collapsed" ? item.title : undefined}
-                  >
-                    <Link to={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                      {item.badge && state === "expanded" && (
-                        <Badge variant="secondary" className="ml-auto text-xs">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {mainNavItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {mainNavItems.map((item) => (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={activeItem === item.key}
+                      tooltip={state === "collapsed" ? item.title : undefined}
+                    >
+                      <Link to={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                        {item.badge && state === "expanded" && (
+                          <Badge variant="secondary" className="ml-auto text-xs">
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Inventory Section */}
-        <SidebarGroup>
-          <Collapsible
-            open={openSections.inventory}
-            onOpenChange={() => toggleSection("inventory")}
-            className="group/collapsible"
-          >
-            <SidebarMenuItem>
-              <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={state === "collapsed" ? "Inventory" : undefined}>
-                  <Package />
-                  <span>Inventory</span>
-                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                </SidebarMenuButton>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarMenuSub>
-                  {inventoryItems.map((item) => (
-                    <SidebarMenuSubItem key={item.key}>
-                      <SidebarMenuSubButton asChild isActive={activeItem === item.key}>
-                        <Link to={item.url}>
-                          <span>{item.title}</span>
-                          {item.badge && (
-                            <Badge variant="destructive" className="ml-auto text-xs">
-                              {item.badge}
-                            </Badge>
-                          )}
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  ))}
-                </SidebarMenuSub>
-              </CollapsibleContent>
-            </SidebarMenuItem>
-          </Collapsible>
-        </SidebarGroup>
+        {inventoryItems.length > 0 && (
+          <SidebarGroup>
+            <Collapsible
+              open={openSections.inventory}
+              onOpenChange={() => toggleSection("inventory")}
+              className="group/collapsible"
+            >
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton tooltip={state === "collapsed" ? "Inventory" : undefined}>
+                    <Package />
+                    <span>Inventory</span>
+                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {inventoryItems.map((item) => (
+                      <SidebarMenuSubItem key={item.key}>
+                        <SidebarMenuSubButton asChild isActive={activeItem === item.key}>
+                          <Link to={item.url}>
+                            <span>{item.title}</span>
+                            {item.badge && (
+                              <Badge variant="destructive" className="ml-auto text-xs">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          </SidebarGroup>
+        )}
 
         {/* Reports Section */}
-        <SidebarGroup>
-          <Collapsible
-            open={openSections.reports}
-            onOpenChange={() => toggleSection("reports")}
-            className="group/collapsible"
-          >
-            <SidebarMenuItem>
-              <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={state === "collapsed" ? "Reports" : undefined}>
-                  <FileText />
-                  <span>Reports</span>
-                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                </SidebarMenuButton>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarMenuSub>
-                  {reportItems.map((item) => (
-                    <SidebarMenuSubItem key={item.key}>
-                      <SidebarMenuSubButton asChild isActive={activeItem === item.key}>
-                        <Link to={item.url}>
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  ))}
-                </SidebarMenuSub>
-              </CollapsibleContent>
-            </SidebarMenuItem>
-          </Collapsible>
-        </SidebarGroup>
+        {reportItems.length > 0 && (
+          <SidebarGroup>
+            <Collapsible
+              open={openSections.reports}
+              onOpenChange={() => toggleSection("reports")}
+              className="group/collapsible"
+            >
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton tooltip={state === "collapsed" ? "Reports" : undefined}>
+                    <FileText />
+                    <span>Reports</span>
+                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {reportItems.map((item) => (
+                      <SidebarMenuSubItem key={item.key}>
+                        <SidebarMenuSubButton asChild isActive={activeItem === item.key}>
+                          <Link to={item.url}>
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          </SidebarGroup>
+        )}
 
         {/* Management Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {managementItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={activeItem === item.key}
-                    tooltip={state === "collapsed" ? item.title : undefined}
-                  >
-                    <Link to={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+        {managementItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {managementItems.map((item) => (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={activeItem === item.key}
+                      tooltip={state === "collapsed" ? item.title : undefined}
+                    >
+                      <Link to={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-      </SidebarContent>
+      )}
+    </SidebarContent>
 
       {/* Sidebar Footer */}
       <SidebarFooter>

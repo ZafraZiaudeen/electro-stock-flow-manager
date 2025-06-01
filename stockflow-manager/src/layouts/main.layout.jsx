@@ -12,6 +12,7 @@ const pageTitles = {
   "/returns": "Returns",
   "/projects": "Projects Management",
   "/issue-item": "Issue Management",
+  "/user-management": "User Management",
 };
 
 export default function MainLayout() {

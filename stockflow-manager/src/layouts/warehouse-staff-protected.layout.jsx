@@ -1,10 +1,10 @@
 import { useUser } from "@clerk/clerk-react";
-import { Navigate } from "react-router-dom";
-import SignInPage from "./sign-in.page";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Package } from "lucide-react";
 
-export default function HomePage() {
-  const { isLoaded, isSignedIn, user } = useUser();
+const WarehouseStaffProtectedLayout = () => {
+  const { user, isLoaded } = useUser();
+  const location = useLocation();
 
   if (!isLoaded) {
     return (
@@ -24,10 +24,11 @@ export default function HomePage() {
     );
   }
 
-  // Redirect admins to dashboard
-  if (isSignedIn && user?.publicMetadata.role === "admin") {
-    return <Navigate to="/dashboard" replace />;
+  if (user && (user.publicMetadata.role === "warehouse_staff" || user.publicMetadata.role === "admin")) {
+    return <Outlet />;
   }
 
-  return <SignInPage />;
-}
+  return <Navigate to="/" state={{ from: location.pathname }} replace />;
+};
+
+export default WarehouseStaffProtectedLayout;

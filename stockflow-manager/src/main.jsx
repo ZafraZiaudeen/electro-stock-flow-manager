@@ -9,7 +9,7 @@ import Dashboard from "./pages/dashboard.page";
 import MainLayout from "./layouts/main.layout";
 import PurchaseEntry from "./pages/purchase-entry.page";
 import OpeningStockEntry from "./pages/inventory/opening-stock.page";
-import ProtectedLayout from "./layouts/protected.layout";
+
 import AdminProtectedLayout from "./layouts/admin-protected.layout";
 import SignInPage from "./pages/sign-in.page";
 import SignUpPage from "./pages/sign-up.page";
@@ -18,6 +18,7 @@ import Return from "./pages/return.page";
 import ProjectsManagement from "./pages/project-management.page";
 import IssueItems from "./pages/issue-item.page";
 import HomePage from "./pages/home.page";
+import UserManagement from "./pages/user-management.page";
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!PUBLISHABLE_KEY) {
@@ -34,7 +35,6 @@ createRoot(document.getElementById("root")).render(
           <Route path="/sign-in" element={<SignInPage />} />
             <Route path="/sign-up" element={<SignUpPage />} />
             
-              <Route element={<ProtectedLayout />}>
               <Route element={<AdminProtectedLayout />}>
               <Route element={<MainLayout />}>
                 
@@ -44,6 +44,7 @@ createRoot(document.getElementById("root")).render(
                   <Route path="/grn-management" element={<GRNManagement />} />
                   <Route path="/returns" element={<Return />} />
                   <Route path="/projects" element={<ProjectsManagement/>} />
+                  <Route path="/user-management" element={<UserManagement />} />
                   <Route path="/issue-item" element={<IssueItems/>} />
                 </Route>
               </Route>
