@@ -12,7 +12,8 @@ const pageTitles = {
   "/inventory/opening-stock": "Opening Stock",
   "/grn-management": "GRN Management",
   "/returns": "Returns",
-  "/projects": "Projects Management",
+  "/projects": "Projects Management",  
+  "/issue-item": "Issue Management",
 };
 
 export default function RootLayout() {

@@ -11,6 +11,7 @@ const pageTitles = {
   "/grn-management": "GRN Management",
   "/returns": "Returns",
   "/projects": "Projects Management",
+  "/issue-item": "Issue Management",
 };
 
 export default function MainLayout() {

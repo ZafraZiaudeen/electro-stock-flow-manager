@@ -85,7 +85,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
     {
       title: "Issue",
       icon: ArrowUpRight,
-      url: "/issue",
+      url: "/issue-item",
       key: "issue",
     },
     {

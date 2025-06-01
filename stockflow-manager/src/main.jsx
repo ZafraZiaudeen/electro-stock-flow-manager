@@ -16,7 +16,7 @@ import SignUpPage from "./pages/sign-up.page";
 import GRNManagement from "./pages/grn-management.page";
 import Return from "./pages/return.page";
 import ProjectsManagement from "./pages/project-management.page";
-
+import IssueItems from "./pages/issue-item.page";
 import HomePage from "./pages/home.page";
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -44,6 +44,7 @@ createRoot(document.getElementById("root")).render(
                   <Route path="/grn-management" element={<GRNManagement />} />
                   <Route path="/returns" element={<Return />} />
                   <Route path="/projects" element={<ProjectsManagement/>} />
+                  <Route path="/issue-item" element={<IssueItems/>} />
                 </Route>
               </Route>
             </Route>
