@@ -7,41 +7,41 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Package, FileText, X, Save } from "lucide-react";
+import { Plus, Package, FileText, X, Save, Search } from "lucide-react";
 
-// Mock stock data with entry dates for FIFO
+// Sample stock data with entry dates for FIFO
 const initialStockItems = [
   {
-    partNumber: "EL-SW-001",
-    makeCompany: "Schneider Electric",
-    description: "Circuit Breaker 30A",
+    partNumber: "BL001",
+    makeCompany: "GOOGLE",
+    description: "Blade",
     unit: "Pieces",
-    unitPrice: 78.5,
-    quantity: 20,
-    entryDate: "2024-01-10",
+    unitPrice: 50.0,
+    quantity: 50,
+    entryDate: "2025-05-01",
   },
   {
-    partNumber: "EL-SW-001",
-    makeCompany: "Schneider Electric",
-    description: "Circuit Breaker 30A",
+    partNumber: "BL001",
+    makeCompany: "GOOGLE",
+    description: "Blade",
     unit: "Pieces",
-    unitPrice: 78.5,
-    quantity: 10,
-    entryDate: "2024-02-15",
+    unitPrice: 50.0,
+    quantity: 50,
+    entryDate: "2025-06-01",
   },
   {
-    partNumber: "EL-CB-002",
+    partNumber: "CB002",
     makeCompany: "ABB Ltd",
     description: "Contactor 40A",
     unit: "Pieces",
     unitPrice: 65.75,
-    quantity: 15,
-    entryDate: "2024-01-14",
+    quantity: 30,
+    entryDate: "2025-05-15",
   },
 ];
 
 // Mock list of projects
-const projectsList = ["Project A", "Project B", "Project C"];
+const projectsList = ["Project Alpha", "Project Beta", "Project Gamma"];
 
 export default function IssueItems() {
   const [stockItems, setStockItems] = useState(initialStockItems);
@@ -52,30 +52,26 @@ export default function IssueItems() {
     totalUnits: 0,
     projects: [{ projectName: "", quantity: 0 }],
   });
-  const [availableQty, setAvailableQty] = useState(60);
+  const [availableQty, setAvailableQty] = useState(0);
   const [availableValue, setAvailableValue] = useState(0);
   const [selectedUnit, setSelectedUnit] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Calculate available quantity and value for a part number
-  const calculateAvailableStock = (partNumber) => {
-    const matchingItems = stockItems
-      .filter((item) => item.partNumber === partNumber)
-      .sort((a, b) => new Date(a.entryDate) - new Date(b.entryDate)); // Sort by FIFO
-
-    const totalQty = matchingItems.reduce((sum, item) => sum + item.quantity, 0);
-    const avgUnitPrice = matchingItems.length > 0 ? matchingItems[0].unitPrice : 0; // Use the price of the oldest item for simplicity
-    const unit = matchingItems.length > 0 ? matchingItems[0].unit : "";
-    setAvailableQty(totalQty);
-    setAvailableValue(totalQty * avgUnitPrice);
-    setSelectedUnit(unit);
-  };
-
-  // Handle part number change to auto-populate available quantity and value
-  const handlePartNumberChange = (value) => {
-    setIssueData({ ...issueData, partNumber: value });
-    if (value) {
-      calculateAvailableStock(value);
+  // Find item and calculate available stock
+  const handleFindItem = (value) => {
+    setSearchTerm(value);
+    const matchingItems = stockItems.filter((item) => item.partNumber === value);
+    if (matchingItems.length > 0) {
+      const sortedItems = matchingItems.sort((a, b) => new Date(a.entryDate) - new Date(b.entryDate));
+      const totalQty = matchingItems.reduce((sum, item) => sum + item.quantity, 0);
+      const avgUnitPrice = sortedItems[0].unitPrice;
+      const unit = sortedItems[0].unit;
+      setIssueData({ ...issueData, partNumber: value });
+      setAvailableQty(totalQty);
+      setAvailableValue(totalQty * avgUnitPrice);
+      setSelectedUnit(unit);
     } else {
+      setIssueData({ ...issueData, partNumber: value });
       setAvailableQty(0);
       setAvailableValue(0);
       setSelectedUnit("");
@@ -107,7 +103,6 @@ export default function IssueItems() {
   const handleIssueItems = () => {
     const { partNumber, totalUnits, projects } = issueData;
 
-    // Validation
     if (!partNumber || totalUnits <= 0) {
       alert("Please enter a valid Part Number and Total Units.");
       return;
@@ -126,11 +121,10 @@ export default function IssueItems() {
       return;
     }
 
-    // Issue items using FIFO
     let remainingUnits = totalUnits;
     const sortedStock = [...stockItems]
       .filter((item) => item.partNumber === partNumber)
-      .sort((a, b) => new Date(a.entryDate) - new Date(b.entryDate)); // Sort by FIFO
+      .sort((a, b) => new Date(a.entryDate) - new Date(b.entryDate));
 
     const updatedStock = [...stockItems];
     for (let i = 0; i < sortedStock.length && remainingUnits > 0; i++) {
@@ -143,20 +137,17 @@ export default function IssueItems() {
       remainingUnits -= toDeduct;
     }
 
-    // Remove items with zero quantity
     const filteredStock = updatedStock.filter((item) => item.quantity > 0);
     setStockItems(filteredStock);
 
-    // Record the issuance
     const issuedItem = {
       partNumber,
       quantity: totalUnits,
       projects,
-      dateIssued: new Date().toISOString().split("T")[0], // Today's date
+      dateIssued: new Date().toISOString().split("T")[0],
     };
     setIssuedItems([...issuedItems, issuedItem]);
 
-    // Reset dialog state
     setIssueData({
       partNumber: "",
       totalUnits: 0,
@@ -169,158 +160,48 @@ export default function IssueItems() {
     alert(`Successfully issued ${totalUnits} units of ${partNumber}.`);
   };
 
-  // Calculate summary stats
-  const totalItemsInStock = stockItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalIssuedItems = issuedItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalIssuedValue = issuedItems.reduce((sum, item) => {
-    const unitPrice = stockItems.find((stock) => stock.partNumber === item.partNumber)?.unitPrice || 0;
-    return sum + item.quantity * unitPrice;
-  }, 0);
-
   return (
-    <>
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col gap-4 p-4">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Items in Stock</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalItemsInStock}</div>
-              <p className="text-xs text-muted-foreground">Available for issuance</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Issued Items</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalIssuedItems}</div>
-              <p className="text-xs text-muted-foreground">Issued this month</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Issued Value</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${totalIssuedValue.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">Value of issued items</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Issue Items Button */}
-        <Card>
-          <CardContent className="pt-6">
-            <Button
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => setShowIssueDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Issue Items
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Issued Items Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Issued Items History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {issuedItems.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg">No items have been issued yet.</p>
-                <p className="text-sm">Click "Issue Items" to start issuing stock.</p>
-              </div>
-            ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Part Number</TableHead>
-                      <TableHead>Quantity Issued</TableHead>
-                      <TableHead>Projects</TableHead>
-                      <TableHead>Date Issued</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {issuedItems.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{item.partNumber}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>
-                          {item.projects.map((proj, i) => (
-                            <div key={i}>
-                              {proj.projectName}: {proj.quantity} units
-                            </div>
-                          ))}
-                        </TableCell>
-                        <TableCell>{item.dateIssued}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+    <div className="p-4">
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Find Item"
+                value={searchTerm}
+                onChange={(e) => handleFindItem(e.target.value)}
+                className="w-1/3"
+              />
+              <Button onClick={() => handleFindItem(searchTerm)}>
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+            {issueData.partNumber && (
+              <div>
+                <p>Description: {stockItems.find((item) => item.partNumber === issueData.partNumber)?.description || "N/A"}</p>
+                <p>Make Company: {stockItems.find((item) => item.partNumber === issueData.partNumber)?.makeCompany || "N/A"}</p>
+                <p>Unit: {selectedUnit}</p>
+                <p>Available Quantity: {availableQty} {selectedUnit}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Issue Items Dialog */}
-      <Dialog open={showIssueDialog} onOpenChange={setShowIssueDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Issue Stock Items</DialogTitle>
-            <DialogDescription>Enter the details to issue stock items to projects</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Item Part Number *</label>
-              <Input
-                value={issueData.partNumber}
-                onChange={(e) => handlePartNumberChange(e.target.value)}
-                placeholder="Enter Part Number"
-              />
-              {issueData.partNumber && (
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Available Quantity: {availableQty}</span>
-                  <span>Value: ${availableValue.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Unit of Measurement</label>
-              <Input value={selectedUnit} disabled className="bg-gray-100" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Total Number of Units to Issue *</label>
+            <div>
+              <label>Total Quantity to Issue</label>
               <Input
                 type="number"
                 value={issueData.totalUnits}
-                onChange={(e) =>
-                  setIssueData({ ...issueData, totalUnits: parseInt(e.target.value) || 0 })
-                }
-                placeholder="Enter Total Units"
+                onChange={(e) => setIssueData({ ...issueData, totalUnits: parseInt(e.target.value) || 0 })}
+                placeholder="Enter Total Quantity"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Issue to Projects *</label>
+            <div>
+              <h3>Project Allocations</h3>
               {issueData.projects.map((project, index) => (
                 <div key={index} className="flex items-center gap-2 mb-2">
                   <Select
                     value={project.projectName}
                     onValueChange={(value) => handleProjectChange(index, "projectName", value)}
                   >
-                    <SelectTrigger className="w-1/2">
+                    <SelectTrigger className="w-1/3">
                       <SelectValue placeholder="Select Project" />
                     </SelectTrigger>
                     <SelectContent>
@@ -334,45 +215,29 @@ export default function IssueItems() {
                   <Input
                     type="number"
                     value={project.quantity}
-                    onChange={(e) =>
-                      handleProjectChange(index, "quantity", parseInt(e.target.value) || 0)
-                    }
-                    placeholder="Units"
-                    className="w-1/4"
+                    onChange={(e) => handleProjectChange(index, "quantity", parseInt(e.target.value) || 0)}
+                    placeholder="Quantity"
+                    className="w-1/6"
                   />
-                  {issueData.projects.length > 1 && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeProjectRow(index)}
-                    >
+                  {index > 0 && (
+                    <Button variant="destructive" size="sm" onClick={() => removeProjectRow(index)}>
                       <X className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={addProjectRow}
-                className="mt-2"
-              >
+              <Button variant="outline" size="sm" onClick={addProjectRow} className="mt-2">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Another Project
+                Add Project
               </Button>
             </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowIssueDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleIssueItems}>
+            <Button onClick={handleIssueItems} disabled={!issueData.partNumber || issueData.totalUnits <= 0 || availableQty < issueData.totalUnits}>
               <Save className="h-4 w-4 mr-2" />
               Issue Items
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
