@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import {
   Package,
@@ -126,7 +124,7 @@ const recentActivities = [
     timestamp: "Today, 10:30 AM",
     user: "John Doe",
     grn: "GRN-2024-0125",
-    amount: "₹1,570",
+    amount: "ريال1,570",
   },
   {
     id: 2,
@@ -135,7 +133,7 @@ const recentActivities = [
     timestamp: "Today, 9:15 AM",
     user: "Sarah Smith",
     project: "PRJ-ALPHA-2024",
-    amount: "₹17,500",
+    amount: "ريال17,500",
   },
   {
     id: 3,
@@ -144,7 +142,7 @@ const recentActivities = [
     timestamp: "Yesterday, 4:45 PM",
     user: "John Doe",
     grn: "GRN-2024-0124",
-    amount: "₹625",
+    amount: "ريال625",
   },
   {
     id: 4,
@@ -153,7 +151,7 @@ const recentActivities = [
     timestamp: "Yesterday, 2:30 PM",
     user: "Mike Johnson",
     project: "PRJ-BETA-2024",
-    amount: "₹450",
+    amount: "ريال450",
   },
 ]
 
@@ -201,7 +199,7 @@ export default function Dashboard() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">ريال{totalValue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />

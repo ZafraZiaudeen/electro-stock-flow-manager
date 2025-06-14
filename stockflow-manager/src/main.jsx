@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route } from "react-router-dom"; // Corrected import
 import { ClerkProvider } from "@clerk/clerk-react";
 
 import RootLayout from "./layouts/root.layout";
@@ -9,7 +9,6 @@ import Dashboard from "./pages/dashboard.page";
 import MainLayout from "./layouts/main.layout";
 import PurchaseEntry from "./pages/purchase-entry.page";
 import OpeningStockEntry from "./pages/inventory/opening-stock.page";
-
 import AdminProtectedLayout from "./layouts/admin-protected.layout";
 import SignInPage from "./pages/sign-in.page";
 import SignUpPage from "./pages/sign-up.page";
@@ -19,6 +18,10 @@ import ProjectsManagement from "./pages/project-management.page";
 import IssueItems from "./pages/issue-item.page";
 import HomePage from "./pages/home.page";
 import UserManagement from "./pages/user-management.page";
+
+import { store } from "./lib/store"; // Ensure path is correct
+import { Provider } from "react-redux";
+
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!PUBLISHABLE_KEY) {
@@ -27,32 +30,30 @@ if (!PUBLISHABLE_KEY) {
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<RootLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/sign-in" element={<SignInPage />} />
-            <Route path="/sign-up" element={<SignUpPage />} />
-            
+    <Provider store={store}>
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<RootLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/sign-in" element={<SignInPage />} />
+              <Route path="/sign-up" element={<SignUpPage />} />
               <Route element={<AdminProtectedLayout />}>
-              <Route element={<MainLayout />}>
-                
+                <Route element={<MainLayout />}>
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/purchase-entry" element={<PurchaseEntry />} />
                   <Route path="/inventory/opening-stock" element={<OpeningStockEntry />} />
                   <Route path="/grn-management" element={<GRNManagement />} />
                   <Route path="/returns" element={<Return />} />
-                  <Route path="/projects" element={<ProjectsManagement/>} />
+                  <Route path="/projects" element={<ProjectsManagement />} />
                   <Route path="/user-management" element={<UserManagement />} />
-                  <Route path="/issue-item" element={<IssueItems/>} />
-               
+                  <Route path="/issue-item" element={<IssueItems />} />
+                </Route>
               </Route>
             </Route>
-            
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </ClerkProvider>
+          </Routes>
+        </BrowserRouter>
+      </ClerkProvider>
+    </Provider>
   </StrictMode>
 );

@@ -29,7 +29,6 @@ const AdminProtectedLayout = () => {
     return <Outlet />;
   }
 
-  // Redirect non-admins to the home page, preserving the intended route as state
   return <Navigate to="/" state={{ from: location.pathname }} replace />;
 };
 
