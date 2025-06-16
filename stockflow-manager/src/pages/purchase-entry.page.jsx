@@ -13,15 +13,12 @@ import {
   Upload,
   ChevronDown,
   ChevronUp,
-  Package,
-  ShoppingCart,
   AlertCircle,
   CheckCircle,
-  Filter,
   RefreshCw,
   Eye,
-  ChevronLeft,
-  ChevronRight,
+  Edit,
+  Trash,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -34,12 +31,14 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { 
+import {
   useGetAllPurchaseEntriesQuery,
   useCreatePurchaseEntryMutation,
+  useUpdatePurchaseEntryMutation,
+  useDeletePurchaseEntryMutation,
 } from "../lib/api"
 import * as XLSX from "xlsx"
 
@@ -69,12 +68,17 @@ export default function PurchaseEntry() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
   const [selectedGRN, setSelectedGRN] = useState(null)
+  const [editingGRN, setEditingGRN] = useState(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [grnToDelete, setGrnToDelete] = useState(null)
 
   const itemsPerPage = 5
-  const unitOptions =  ["Box", "Packets", "EA", "Roll", "Pieces", "Nos", "Meters", "Lot"]
+  const unitOptions = ["Box", "Packets", "EA", "Roll", "Pieces", "Nos", "Meters", "Lot"]
 
   const { data: purchaseEntries = [], isLoading: isEntriesLoading } = useGetAllPurchaseEntriesQuery()
   const [createPurchaseEntry, { isLoading: isCreating, isError, error }] = useCreatePurchaseEntryMutation()
+  const [updatePurchaseEntry, { isLoading: isUpdating }] = useUpdatePurchaseEntryMutation()
+  const [deletePurchaseEntry, { isLoading: isDeleting }] = useDeletePurchaseEntryMutation()
 
   const addNewRow = () => {
     const newId = Math.max(...grnItems.map((item) => item.id), 0) + 1
@@ -117,11 +121,11 @@ export default function PurchaseEntry() {
   const calculateSearchResultsTotal = () => {
     const filteredEntries = purchaseEntries.filter((entry) => {
       if (searchType === "poNumber") {
-        return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase())
       } else {
-        return entry.items.some(item => item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+        return entry.items.some((item) => item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()))
       }
-    });
+    })
     return filteredEntries.reduce((total, entry) => total + (entry.totalValue || 0), 0)
   }
 
@@ -136,11 +140,7 @@ export default function PurchaseEntry() {
   const handleCreateGRN = async () => {
     const hasValidItems = grnItems.some(
       (item) =>
-        item.partNumber.trim() &&
-        item.makeCompany.trim() &&
-        item.description.trim() &&
-        item.unitPrice &&
-        item.quantity
+        item.partNumber.trim() && item.makeCompany.trim() && item.description.trim() && item.unitPrice && item.quantity,
     )
 
     if (!poNumber.trim()) {
@@ -171,7 +171,9 @@ export default function PurchaseEntry() {
 
     try {
       await createPurchaseEntry(grnData).unwrap()
-      setSuccessMessage(`GRN Created Successfully!\nGRN Number: ${grnData.grn}\nTotal Value: ريال ${grnData.totalValue.toFixed(2)}`)
+      setSuccessMessage(
+        `GRN Created Successfully!\nGRN Number: ${grnData.grn}\nTotal Value: ريال ${grnData.totalValue.toFixed(2)}`,
+      )
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 5000)
       setPONumber("")
@@ -194,9 +196,125 @@ export default function PurchaseEntry() {
     }
   }
 
+  const handleEditGRN = (entry) => {
+    setEditingGRN(entry)
+    setPONumber(entry.poNumber)
+    setPurchaseDate(new Date(entry.purchaseDate))
+    setGrnItems(
+      entry.items.map((item, index) => ({
+        id: index + 1,
+        partNumber: item.partNumber,
+        makeCompany: item.makeCompany,
+        description: item.description,
+        unit: item.unit,
+        packing: String(item.packing),
+        unitPrice: String(item.unitPrice),
+        quantity: String(item.quantity),
+      })),
+    )
+    setActiveTab("create")
+  }
+
+  const handleUpdateGRN = async () => {
+    const hasValidItems = grnItems.some(
+      (item) =>
+        item.partNumber.trim() && item.makeCompany.trim() && item.description.trim() && item.unitPrice && item.quantity,
+    )
+
+    if (!poNumber.trim()) {
+      alert("Please enter PO Number")
+      return
+    }
+
+    if (!hasValidItems) {
+      alert("Please fill at least one complete item row")
+      return
+    }
+
+    const grnData = {
+      poNumber,
+      purchaseDate,
+      grn: editingGRN.grn,
+      totalValue: calculateTotal(),
+      items: grnItems.map((item) => ({
+        partNumber: item.partNumber,
+        makeCompany: item.makeCompany,
+        description: item.description,
+        unit: item.unit,
+        packing: Number.parseFloat(item.packing) || 1,
+        unitPrice: Number.parseFloat(item.unitPrice) || 0,
+        quantity: Number.parseFloat(item.quantity) || 0,
+      })),
+    }
+
+    try {
+      await updatePurchaseEntry({ id: editingGRN._id, ...grnData }).unwrap()
+      setSuccessMessage(
+        `GRN Updated Successfully!\nGRN Number: ${grnData.grn}\nTotal Value: ريال ${grnData.totalValue.toFixed(2)}`,
+      )
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 5000)
+      setEditingGRN(null)
+      setPONumber("")
+      setPurchaseDate(new Date())
+      setGrnItems([
+        {
+          id: 1,
+          partNumber: "",
+          makeCompany: "",
+          description: "",
+          unit: "Pieces",
+          packing: "1",
+          unitPrice: "",
+          quantity: "",
+        },
+      ])
+    } catch (err) {
+      const errorMessage = err?.data?.message || err?.error || "Unknown error"
+      alert(`Failed to update GRN: ${errorMessage}`)
+    }
+  }
+
+  const handleDeleteGRN = (entry) => {
+    setGrnToDelete(entry)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDelete = async () => {
+    try {
+      await deletePurchaseEntry(grnToDelete._id).unwrap()
+      setSuccessMessage(`GRN ${grnToDelete.grn} deleted successfully`)
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 5000)
+      setShowDeleteConfirm(false)
+      setGrnToDelete(null)
+    } catch (err) {
+      const errorMessage = err?.data?.message || err?.error || "Unknown error"
+      alert(`Failed to delete GRN: ${errorMessage}`)
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditingGRN(null)
+    setPONumber("")
+    setPurchaseDate(new Date())
+    setGrnItems([
+      {
+        id: 1,
+        partNumber: "",
+        makeCompany: "",
+        description: "",
+        unit: "Pieces",
+        packing: "1",
+        unitPrice: "",
+        quantity: "",
+      },
+    ])
+  }
+
   const handleImportFromExcel = async (event) => {
     const file = event.target.files?.[0]
-    
+
     if (!file) {
       alert("Please select a file to import.")
       return
@@ -217,11 +335,11 @@ export default function PurchaseEntry() {
     try {
       const arrayBuffer = await file.arrayBuffer()
       setImportProgress(25)
-      
+
       const workbook = XLSX.read(arrayBuffer, { type: "array" })
       const sheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[sheetName]
-      
+
       setImportProgress(50)
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
 
@@ -265,9 +383,7 @@ export default function PurchaseEntry() {
       })
 
       const validItems = items
-        .filter(
-          (item) => item.partNumber && item.makeCompany && item.description && item.unitPrice && item.quantity
-        )
+        .filter((item) => item.partNumber && item.makeCompany && item.description && item.unitPrice && item.quantity)
         .map((item, index) => ({
           id: grnItems.length + index + 1,
           partNumber: String(item.partNumber || ""),
@@ -288,7 +404,7 @@ export default function PurchaseEntry() {
         setTimeout(() => setShowSuccess(false), 5000)
       } else {
         alert(
-          "No valid items found in the Excel file. Please ensure your file has the following columns: Part Number, Make Company, Description, Unit, Packing, Unit Price, Quantity"
+          "No valid items found in the Excel file. Please ensure your file has the following columns: Part Number, Make Company, Description, Unit, Packing, Unit Price, Quantity",
         )
       }
     } catch (error) {
@@ -330,7 +446,7 @@ export default function PurchaseEntry() {
           entry.grn,
           entry.poNumber,
           format(new Date(entry.purchaseDate), "yyyy-MM-dd"),
-        ].join(",")
+        ].join(","),
       ),
     ].join("\n")
 
@@ -346,11 +462,11 @@ export default function PurchaseEntry() {
   const exportSearchResults = () => {
     const filteredEntries = purchaseEntries.filter((entry) => {
       if (searchType === "poNumber") {
-        return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase())
       } else {
-        return entry.items.some(item => item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+        return entry.items.some((item) => item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()))
       }
-    });
+    })
     if (filteredEntries.length > 0) {
       const headers = [
         "Part Number",
@@ -381,8 +497,8 @@ export default function PurchaseEntry() {
               entry.grn,
               entry.poNumber,
               format(new Date(entry.purchaseDate), "yyyy-MM-dd"),
-            ].join(",")
-          )
+            ].join(","),
+          ),
         ),
       ].join("\n")
 
@@ -475,7 +591,7 @@ export default function PurchaseEntry() {
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
-                          !purchaseDate && "text-muted-foreground"
+                          !purchaseDate && "text-muted-foreground",
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -496,8 +612,12 @@ export default function PurchaseEntry() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-lg font-semibold text-gray-800">New GRN Entry</CardTitle>
-                  <CardDescription>GRN will be auto-generated</CardDescription>
+                  <CardTitle className="text-lg font-semibold text-gray-800">
+                    {editingGRN ? `Edit GRN: ${editingGRN.grn}` : "New GRN Entry"}
+                  </CardTitle>
+                  <CardDescription>
+                    {editingGRN ? "Update existing GRN details" : "GRN will be auto-generated"}
+                  </CardDescription>
                 </div>
                 {calculateTotal() > 0 && (
                   <div className="text-right">
@@ -516,10 +636,7 @@ export default function PurchaseEntry() {
                       <span className="text-sm text-muted-foreground">{importProgress}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div
-                        className="bg-blue-600 h-2.5 rounded-full"
-                        style={{ width: `${importProgress}%` }}
-                      ></div>
+                      <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${importProgress}%` }}></div>
                     </div>
                   </div>
                 )}
@@ -602,7 +719,10 @@ export default function PurchaseEntry() {
                           </TableCell>
                           <TableCell>
                             <div className="font-medium">
-                              ريال {((Number.parseFloat(item.unitPrice) || 0) * (Number.parseFloat(item.quantity) || 0)).toFixed(2)}
+                              ريال{" "}
+                              {(
+                                (Number.parseFloat(item.unitPrice) || 0) * (Number.parseFloat(item.quantity) || 0)
+                              ).toFixed(2)}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -640,10 +760,26 @@ export default function PurchaseEntry() {
                         {isImporting ? "Importing..." : "Import Excel"}
                       </Button>
                     </label>
+                    {editingGRN && (
+                      <Button variant="outline" onClick={cancelEdit}>
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel Edit
+                      </Button>
+                    )}
                   </div>
-                  <Button onClick={handleCreateGRN} className="bg-blue-600 hover:bg-blue-700" disabled={isCreating}>
+                  <Button
+                    onClick={editingGRN ? handleUpdateGRN : handleCreateGRN}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={isCreating || isUpdating}
+                  >
                     <Save className="h-4 w-4 mr-2" />
-                    {isCreating ? "Creating..." : "Create GRN"}
+                    {editingGRN
+                      ? isUpdating
+                        ? "Updating..."
+                        : "Update GRN"
+                      : isCreating
+                        ? "Creating..."
+                        : "Create GRN"}
                   </Button>
                 </div>
                 {!poNumber.trim() && (
@@ -703,7 +839,9 @@ export default function PurchaseEntry() {
             <Card className="bg-gray-50 border-2 border-blue-200">
               <CardHeader className="bg-white border-b">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold text-gray-800">Search Results for {searchType === "poNumber" ? "PO" : "Part"}: {searchTerm}</CardTitle>
+                  <CardTitle className="text-lg font-semibold text-gray-800">
+                    Search Results for {searchType === "poNumber" ? "PO" : "Part"}: {searchTerm}
+                  </CardTitle>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={closeSearchResults}>
                       <X className="h-4 w-4 mr-2" />
@@ -719,9 +857,9 @@ export default function PurchaseEntry() {
               <CardContent className="p-6">
                 {purchaseEntries.filter((entry) => {
                   if (searchType === "poNumber") {
-                    return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase());
+                    return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase())
                   } else {
-                    return entry.items.some(item => item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+                    return entry.items.some((item) => item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()))
                   }
                 }).length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
@@ -732,13 +870,19 @@ export default function PurchaseEntry() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <p className="text-sm text-muted-foreground">
-                        Found {purchaseEntries.filter((entry) => {
-                          if (searchType === "poNumber") {
-                            return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase());
-                          } else {
-                            return entry.items.some(item => item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()));
-                          }
-                        }).reduce((sum, entry) => sum + entry.items.length, 0)} item(s)
+                        Found{" "}
+                        {purchaseEntries
+                          .filter((entry) => {
+                            if (searchType === "poNumber") {
+                              return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase())
+                            } else {
+                              return entry.items.some((item) =>
+                                item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()),
+                              )
+                            }
+                          })
+                          .reduce((sum, entry) => sum + entry.items.length, 0)}{" "}
+                        item(s)
                       </p>
                       <p className="text-lg font-semibold">
                         Total Value: ريال {calculateSearchResultsTotal().toLocaleString()}
@@ -759,9 +903,11 @@ export default function PurchaseEntry() {
                           {purchaseEntries
                             .filter((entry) => {
                               if (searchType === "poNumber") {
-                                return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase());
+                                return entry.poNumber.toLowerCase().includes(searchTerm.toLowerCase())
                               } else {
-                                return entry.items.some(item => item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+                                return entry.items.some((item) =>
+                                  item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()),
+                                )
                               }
                             })
                             .map((entry) => (
@@ -771,14 +917,20 @@ export default function PurchaseEntry() {
                                 <TableCell>{entry.items.length}</TableCell>
                                 <TableCell>ريال {entry.totalValue.toLocaleString()}</TableCell>
                                 <TableCell>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSelectedGRN(entry)}
-                                  >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => setSelectedGRN(entry)}>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleEditGRN(entry)}>
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </Button>
+                                    <Button variant="destructive" size="sm" onClick={() => handleDeleteGRN(entry)}>
+                                      <Trash className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -797,7 +949,9 @@ export default function PurchaseEntry() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-800">All Purchase Entries (GRN-wise)</CardTitle>
-              <CardDescription className="text-sm text-gray-600">View and manage existing purchase entries</CardDescription>
+              <CardDescription className="text-sm text-gray-600">
+                View and manage existing purchase entries
+              </CardDescription>
             </CardHeader>
             <CardContent className="min-h-[400px] relative pb-16">
               {isEntriesLoading ? (
@@ -831,6 +985,18 @@ export default function PurchaseEntry() {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
+                              handleEditGRN(entry)
+                            }}
+                            className="text-xs"
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
                               exportGRN(entry)
                             }}
                             className="text-xs"
@@ -838,7 +1004,23 @@ export default function PurchaseEntry() {
                             <Download className="h-3 w-3 mr-1" />
                             Export
                           </Button>
-                          {expandedGRNs[entry.grn] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteGRN(entry)
+                            }}
+                            className="text-xs"
+                          >
+                            <Trash className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                          {expandedGRNs[entry.grn] ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
                         </div>
                       </CardHeader>
                       {expandedGRNs[entry.grn] && (
@@ -887,7 +1069,7 @@ export default function PurchaseEntry() {
                   &lt; Previous
                 </Button>
                 {Array.from({ length: Math.min(4, totalPages) }, (_, i) => {
-                  const page = i + 1;
+                  const page = i + 1
                   if (page <= totalPages) {
                     return (
                       <Button
@@ -895,13 +1077,16 @@ export default function PurchaseEntry() {
                         variant={currentPage === page ? "default" : "outline"}
                         onClick={() => paginate(page)}
                         className="w-8 h-8 text-sm"
-                        style={{ backgroundColor: currentPage === page ? "#0078d4" : "", color: currentPage === page ? "#fff" : "#333" }}
+                        style={{
+                          backgroundColor: currentPage === page ? "#0078d4" : "",
+                          color: currentPage === page ? "#fff" : "#333",
+                        }}
                       >
                         {page}
                       </Button>
-                    );
+                    )
                   }
-                  return null;
+                  return null
                 })}
                 {totalPages > 4 && currentPage < totalPages - 2 && (
                   <span className="text-sm text-gray-500 px-2">...</span>
@@ -986,22 +1171,58 @@ export default function PurchaseEntry() {
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
                 <Button
-                  onClick={() => exportGRN(selectedGRN)}
-                  className="bg-blue-500 hover:bg-blue-600"
+                  variant="outline"
+                  onClick={() => {
+                    handleEditGRN(selectedGRN)
+                    setSelectedGRN(null)
+                  }}
                 >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit GRN
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    handleDeleteGRN(selectedGRN)
+                    setSelectedGRN(null)
+                  }}
+                >
+                  <Trash className="h-4 w-4 mr-2" />
+                  Delete GRN
+                </Button>
+                <Button onClick={() => exportGRN(selectedGRN)} className="bg-blue-500 hover:bg-blue-600">
                   <Download className="h-4 w-4 mr-2" />
                   Export GRN
                 </Button>
               </div>
             </div>
           )}
-          <DialogClose asChild>
-            <Button variant="outline" className="absolute right-4 top-4">
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogClose>
+        </DialogContent>
+      </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>
+              Are you sure you want to delete GRN: <strong>{grnToDelete?.grn}</strong>?
+            </p>
+            <p className="text-sm text-muted-foreground">
+              This action cannot be undone. All items in this GRN will be permanently deleted.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete GRN"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
