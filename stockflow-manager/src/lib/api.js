@@ -22,6 +22,10 @@ export const api = createApi({
     getPurchaseEntryById: builder.query({
       query: (id) => `purchase-entries/${id}`,
     }),
+   getPurchaseEntryByPartNumber: builder.query({
+      query: (partNumber) => `purchase-entries/part/${partNumber}`, // Adjust endpoint as per backend
+      providesTags: ["PurchaseEntries"],
+    }),
     createPurchaseEntry: builder.mutation({
       query: (purchaseEntry) => ({
         url: "purchase-entries",
@@ -54,4 +58,5 @@ export const {
   useCreatePurchaseEntryMutation,
   useUpdatePurchaseEntryMutation,
   useDeletePurchaseEntryMutation,
+  useGetPurchaseEntryByPartNumberQuery,
 } = api;
