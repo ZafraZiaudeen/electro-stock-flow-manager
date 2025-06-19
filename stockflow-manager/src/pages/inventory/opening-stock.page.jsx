@@ -1,3 +1,4 @@
+// src/app/opening-stock.page.jsx
 "use client";
 
 import { useState } from "react";
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, ChevronDown, ChevronUp, Search, Plus, Save } from "lucide-react";
 import readXlsxFile from "read-excel-file";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useCreateOpeningStockMutation } from "@/lib/api"; // Assuming API setup
 
 export default function OpeningStockEntry() {
   const [items, setItems] = useState([
@@ -25,6 +27,26 @@ export default function OpeningStockEntry() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   const itemsPerPage = 10;
+  const [createOpeningStock] = useCreateOpeningStockMutation();
+
+  // Unit mapping for abbreviations and full names
+  const unitMapping = {
+    "pcs": "Pieces",
+    "pkt": "Packets",
+    "roll": "ROLL",
+    "box": "Boxes",
+    "pack": "PACK",
+    "set": "SET",
+    "pieces": "Pieces",
+    "packets": "Packets",
+    "boxes": "Boxes",
+  };
+
+  // Normalize unit to full name
+  const normalizeUnit = (unit) => {
+    const normalized = unit?.toString().trim().toLowerCase();
+    return unitMapping[normalized] || normalized || "Pieces";
+  };
 
   // State for new item entry in dialog
   const [newItem, setNewItem] = useState({
@@ -40,7 +62,7 @@ export default function OpeningStockEntry() {
   // Group items by makeCompany, excluding empty or falsy makeCompany values
   const groupedItems = items.reduce((acc, item) => {
     const company = item.makeCompany?.trim();
-    if (!company) return acc; // Skip items with no makeCompany
+    if (!company) return acc;
     acc[company] = acc[company] || [];
     acc[company].push(item);
     return acc;
@@ -91,13 +113,9 @@ export default function OpeningStockEntry() {
     ) + index;
     if (field === "packing") {
       const packingMatch = value.match(/^(\d+)x(\d+)$/);
-      if (packingMatch) {
-        updatedItems[globalIndex][field] = value;
-      } else if (value === "") {
-        updatedItems[globalIndex][field] = "";
-      } else {
-        updatedItems[globalIndex][field] = items[globalIndex][field];
-      }
+      updatedItems[globalIndex][field] = packingMatch ? value : items[globalIndex][field];
+    } else if (field === "unit") {
+      updatedItems[globalIndex][field] = normalizeUnit(value);
     } else {
       updatedItems[globalIndex][field] = value;
     }
@@ -128,76 +146,51 @@ export default function OpeningStockEntry() {
       }
 
       const headers = rows[0].map((header) => header?.toString().trim().toLowerCase());
-      console.log("Excel Headers:", headers);
-
       const headerMapping = {
         partNumber: ["part number", "partnumber", "part no", "partno", "pn", "item number"],
-        makeCompany: ["make/company", "makecompany", "make", "company", "manufacturer", "brand", "vendor", "supplier", "make company name"],
-        description: ["description", "desc", "details", "item description", "product description", "item details", "product details"],
-        unit: ["unit", "uom", "unit of measure", "measurement"],
-        packing: ["packing", "pack", "pack size", "package", "pkg"],
-        unitPrice: ["unit price", "unitprice", "price", "cost", "rate"],
-        quantity: ["quantity", "qty", "amount", "stock", "count", "number", "total", "no of units"],
-        totalValue: ["total value", "totalvalue", "total", "value", "total cost", "total price"],
+        makeCompany: ["make company name", "makecompanyname", "make", "company", "manufacturer", "brand", "vendor", "supplier"],
+        description: ["item description", "description", "desc", "details"],
+        unit: ["unit", "uom", "unit of measure"],
+        packing: ["packing", "pack", "pack size", "package"],
+        unitPrice: ["unit price", "unitprice", "price", "cost"],
+        quantity: ["no of units", "quantity", "qty", "amount", "stock"],
       };
 
       const headerIndices = {};
       Object.keys(headerMapping).forEach((field) => {
-        const variations = headerMapping[field];
-        const foundHeader = headers.find((header) => variations.includes(header));
-        if (foundHeader) {
-          headerIndices[field] = headers.indexOf(foundHeader);
-        }
+        const foundHeader = headers.find((header) => headerMapping[field].includes(header));
+        if (foundHeader) headerIndices[field] = headers.indexOf(foundHeader);
       });
 
-      const requiredFields = ["partNumber", "unit", "packing", "unitPrice", "makeCompany"];
-      const missingRequiredHeaders = requiredFields.filter((field) => headerIndices[field] === undefined);
+      const requiredFields = ["partNumber", "makeCompany", "unit", "packing", "unitPrice", "quantity"];
+      const missingRequiredHeaders = requiredFields.filter((field) => !headerIndices[field]);
       if (missingRequiredHeaders.length > 0) {
-        alert(
-          `Excel file is missing the following required headers: ${missingRequiredHeaders.join(", ")}. Expected headers (case-insensitive): Part Number, Make Company Name, Item Description, Unit, Packing, Unit Price, No of Units`
-        );
+        alert(`Missing required headers: ${missingRequiredHeaders.join(", ")}`);
         setProcessing(false);
         return;
       }
 
-      const optionalFields = ["description", "quantity", "totalValue"];
-      const missingOptionalHeaders = optionalFields.filter((field) => headerIndices[field] === undefined);
-      if (missingOptionalHeaders.length > 0) {
-        console.log("Optional headers missing (using defaults):", missingOptionalHeaders);
+      const mappedData = rows.slice(1).map((row) => ({
+        partNumber: row[headerIndices.partNumber]?.toString() || "",
+        makeCompany: row[headerIndices.makeCompany]?.toString() || "",
+        description: headerIndices.description !== undefined ? row[headerIndices.description]?.toString() || "" : "",
+        unit: normalizeUnit(row[headerIndices.unit]),
+        packing: row[headerIndices.packing]?.toString() || "1x1",
+        unitPrice: parseFloat(row[headerIndices.unitPrice]) || 0,
+        quantity: parseInt(row[headerIndices.quantity]) || 0,
+      }));
+
+      // Validate total value if present
+      if (headerIndices.quantity && headerIndices.unitPrice) {
+        mappedData.forEach((item, index) => {
+          const calculatedTotal = item.unitPrice * item.quantity;
+          const excelTotal = parseFloat(rows[index + 1][headers.indexOf("total value")]) || 0;
+          if (excelTotal && Math.abs(calculatedTotal - excelTotal) > 0.01) {
+            alert(`Row ${index + 2}: Total Value mismatch. Calculated: ${calculatedTotal}, Excel: ${excelTotal}`);
+          }
+        });
       }
 
-      if (headerIndices.totalValue !== undefined) {
-        console.log("Warning: 'Total Value' column found in Excel. It will be ignored, and Total Value will be calculated as Unit Price * Quantity.");
-      }
-
-      const unitMapping = {
-        "pcs": "Pieces",
-        "pkt": "Packets",
-        "roll": "ROLL",
-        "box": "Boxes",
-        "pack": "PACK",
-        "set": "SET",
-      };
-
-      const mappedData = rows.slice(1).map((row) => {
-        const unitValue = row[headerIndices.unit]?.toString().trim().toLowerCase();
-        const selectedUnit = unitMapping[unitValue] || (unitValue && !Object.keys(unitMapping).includes(unitValue) ? unitValue : "Pieces");
-        return {
-          partNumber: row[headerIndices.partNumber]?.toString() || "",
-          makeCompany: row[headerIndices.makeCompany]?.toString() || "",
-          description: headerIndices.description !== undefined ? row[headerIndices.description]?.toString() || "" : "",
-          unit: selectedUnit,
-          packing: row[headerIndices.packing]?.toString() || "1x1",
-          unitPrice: parseFloat(row[headerIndices.unitPrice]) || 0,
-          quantity: headerIndices.quantity !== undefined ? parseInt(row[headerIndices.quantity]) || 0 : 0,
-        };
-      });
-
-      if (mappedData.some(item => !Object.values(unitMapping).includes(item.unit) && item.unit !== "Pieces")) {
-        console.log("Warning: Some unit values from Excel were not recognized or mapped. Valid mappings are: PCS->Pieces, PKT->Packets, ROLL->ROLL, BOX->Boxes, PACK->PACK, SET->SET. Unmapped units default to 'Pieces'.");
-      }
-
-      console.log("Parsed Excel Data:", mappedData);
       setItems(mappedData);
       setExpandedCategories((prev) => {
         const newExpanded = { ...prev };
@@ -213,8 +206,8 @@ export default function OpeningStockEntry() {
 
   // Handle adding a new item via dialog
   const handleAddItem = () => {
-    if (!newItem.partNumber || !newItem.makeCompany || !newItem.unit || !newItem.packing || newItem.unitPrice <= 0) {
-      alert("Please fill in all required fields (Part Number, Company, Unit, Packing, Unit Price)");
+    if (!newItem.partNumber || !newItem.makeCompany || !newItem.unit || !newItem.packing || newItem.unitPrice <= 0 || newItem.quantity <= 0) {
+      alert("Please fill in all required fields (Part Number, Company, Unit, Packing, Unit Price, Quantity)");
       return;
     }
 
@@ -222,7 +215,7 @@ export default function OpeningStockEntry() {
     setItems(updatedItems);
     setExpandedCategories((prev) => ({
       ...prev,
-      [newItem.makeCompany]: true, // Expand the company table after adding
+      [newItem.makeCompany]: true,
     }));
     setShowAddItemDialog(false);
     setNewItem({
@@ -234,7 +227,27 @@ export default function OpeningStockEntry() {
       unitPrice: 0,
       quantity: 0,
     });
-    alert(`Item added successfully to ${newItem.makeCompany}`);
+  };
+
+  // Save opening stock to database
+  const handleSaveOpeningStock = async () => {
+    try {
+      await createOpeningStock({ items }).unwrap();
+      alert("Opening stock saved successfully!");
+      setItems([
+        {
+          partNumber: "",
+          makeCompany: "",
+          description: "",
+          unit: "Pieces",
+          packing: "1x1",
+          unitPrice: 0,
+          quantity: 0,
+        },
+      ]);
+    } catch (err) {
+      alert(`Failed to save opening stock: ${err?.data?.message || err?.error || "Unknown error"}`);
+    }
   };
 
   return (
@@ -242,6 +255,9 @@ export default function OpeningStockEntry() {
       {/* Opening Stock Total Value */}
       <div className="mb-4 p-4 bg-white rounded-lg shadow-sm border">
         <h2 className="text-lg font-semibold">Opening Stock Total Value: ${grandTotal}</h2>
+        <Button onClick={handleSaveOpeningStock} className="mt-2">
+          <Save className="h-4 w-4 mr-2" /> Save to Database
+        </Button>
       </div>
 
       {/* Import from Excel Section */}
@@ -255,20 +271,11 @@ export default function OpeningStockEntry() {
             className="w-full max-w-xs"
             disabled={processing}
           />
-          <Button
-            variant="outline"
-            className="bg-gray-100"
-            disabled={processing}
-          >
+          <Button variant="outline" className="bg-gray-100" disabled={processing}>
             {processing ? "Processing..." : "Upload Excel"}
           </Button>
-          <Button
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => setShowAddItemDialog(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Item
+          <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => setShowAddItemDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Add Item
           </Button>
         </div>
         <div className="relative mt-4 w-full max-w-md">
@@ -294,9 +301,6 @@ export default function OpeningStockEntry() {
         ) : (
           Object.entries(groupedItems).map(([company, companyItems]) => {
             const filteredItems = filterItems(companyItems, company);
-            if (searchTerm && !company.toLowerCase().includes(searchTerm.toLowerCase())) {
-              return null; // Hide non-matching companies
-            }
             const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
             const currentPage = categoryPages[company] || 1;
             const startIndex = (currentPage - 1) * itemsPerPage;
@@ -360,10 +364,10 @@ export default function OpeningStockEntry() {
                                   <SelectValue placeholder="Select unit" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Pieces">Pieces</SelectItem>
-                                  <SelectItem value="Packets">Packets</SelectItem>
+                                  <SelectItem value="Pieces">Pieces (PCS)</SelectItem>
+                                  <SelectItem value="Packets">Packets (PKT)</SelectItem>
                                   <SelectItem value="ROLL">ROLL</SelectItem>
-                                  <SelectItem value="Boxes">Boxes</SelectItem>
+                                  <SelectItem value="Boxes">Boxes (BOX)</SelectItem>
                                   <SelectItem value="PACK">PACK</SelectItem>
                                   <SelectItem value="SET">SET</SelectItem>
                                 </SelectContent>
@@ -482,10 +486,10 @@ export default function OpeningStockEntry() {
                     <SelectValue placeholder="Select Unit" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Pieces">Pieces</SelectItem>
-                    <SelectItem value="Packets">Packets</SelectItem>
+                    <SelectItem value="Pieces">Pieces (PCS)</SelectItem>
+                    <SelectItem value="Packets">Packets (PKT)</SelectItem>
                     <SelectItem value="ROLL">ROLL</SelectItem>
-                    <SelectItem value="Boxes">Boxes</SelectItem>
+                    <SelectItem value="Boxes">Boxes (BOX)</SelectItem>
                     <SelectItem value="PACK">PACK</SelectItem>
                     <SelectItem value="SET">SET</SelectItem>
                   </SelectContent>
@@ -511,7 +515,7 @@ export default function OpeningStockEntry() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Quantity</label>
+                <label className="text-sm font-medium">Quantity *</label>
                 <Input
                   type="number"
                   value={newItem.quantity}

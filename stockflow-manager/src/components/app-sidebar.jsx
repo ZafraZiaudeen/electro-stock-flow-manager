@@ -149,7 +149,7 @@ export function AppSidebar({ activeItem = "dashboard" }) {
   const inventoryItems = [
     {
       title: "All Items",
-      url: "/inventory/all",
+      url: "/inventory/all-items",
       key: "inventory-all",
     },
     {

@@ -8,7 +8,7 @@ export const api = createApi({
     baseUrl: `${BACKEND_URL}/api/`,
     prepareHeaders: async (headers, { getState }) => {
       const token = await window?.Clerk?.session?.getToken();
-      console.log(token);
+      //console.log(token);
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
@@ -21,10 +21,6 @@ export const api = createApi({
     }),
     getPurchaseEntryById: builder.query({
       query: (id) => `purchase-entries/${id}`,
-    }),
-   getPurchaseEntryByPartNumber: builder.query({
-      query: (partNumber) => `purchase-entries/part/${partNumber}`, // Adjust endpoint as per backend
-      providesTags: ["PurchaseEntries"],
     }),
     createPurchaseEntry: builder.mutation({
       query: (purchaseEntry) => ({
@@ -49,6 +45,43 @@ export const api = createApi({
       }),
       invalidatesTags: ["PurchaseEntries"],
     }),
+    getPurchaseEntryByPartNumber: builder.query({
+      query: (partNumber) => `purchase-entries/part/${partNumber}`,
+    }),
+    getAllProjects: builder.query({
+      query: () => "projects",
+    }),
+    createProject: builder.mutation({
+      query: (project) => ({
+        url: "projects",
+        method: "POST",
+        body: project,
+      }),
+    }),
+    getAllIssues: builder.query({
+      query: () => "issues",
+    }),
+    createIssue: builder.mutation({
+      query: (issue) => ({
+        url: "issues",
+        method: "POST",
+        body: issue,
+      }),
+    }),
+    // New endpoints
+    getAvailableInventoryByPartNumber: builder.query({
+      query: (partNumber) => `issues/available/${partNumber}`,
+    }),
+    createOpeningStock: builder.mutation({
+      query: (stock) => ({
+        url: "opening-stock",
+        method: "POST",
+        body: stock,
+      }),
+    }),
+    getAllOpeningStock: builder.query({
+      query: () => "opening-stock",
+    }),
   }),
 });
 
@@ -59,4 +92,12 @@ export const {
   useUpdatePurchaseEntryMutation,
   useDeletePurchaseEntryMutation,
   useGetPurchaseEntryByPartNumberQuery,
+  useGetAllProjectsQuery,
+  useCreateProjectMutation,
+  useGetAllIssuesQuery,
+  useCreateIssueMutation,
+  // New hooks
+  useGetAvailableInventoryByPartNumberQuery,
+  useCreateOpeningStockMutation,
+  useGetAllOpeningStockQuery,
 } = api;

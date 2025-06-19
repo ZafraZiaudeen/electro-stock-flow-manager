@@ -18,7 +18,7 @@ import ProjectsManagement from "./pages/project-management.page";
 import IssueItems from "./pages/issue-item.page";
 import HomePage from "./pages/home.page";
 import UserManagement from "./pages/user-management.page";
-
+import Inventory from "./pages/inventory/all-items.page";
 import { store } from "./lib/store"; // Ensure path is correct
 import { Provider } from "react-redux";
 
@@ -48,6 +48,7 @@ createRoot(document.getElementById("root")).render(
                   <Route path="/projects" element={<ProjectsManagement />} />
                   <Route path="/user-management" element={<UserManagement />} />
                   <Route path="/issue-item" element={<IssueItems />} />
+                  <Route path="/inventory/all-items" element={<Inventory />} />
                 </Route>
               </Route>
             </Route>
