@@ -1,3 +1,5 @@
+"use client"
+
 import { useState } from "react"
 import {
   Package,
@@ -174,17 +176,22 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      {/* Summary Cards */}
+      {/* Summary Cards with Colorful Design */}
       <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalItems.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600 flex items-center">
+        {/* Total Items - Blue */}
+        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 border-0 text-white">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm font-medium">Total Items</p>
+                <p className="text-3xl font-bold text-white">{totalItems.toLocaleString()}</p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-lg">
+                <Package className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <p className="text-xs text-blue-100 mt-2">
+              <span className="flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 +12%
               </span>
@@ -193,15 +200,20 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">ريال{totalValue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600 flex items-center">
+        {/* Total Value - Green */}
+        <Card className="bg-gradient-to-br from-green-500 to-green-600 border-0 text-white">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100 text-sm font-medium">Total Value</p>
+                <p className="text-3xl font-bold text-white">ريال{totalValue.toLocaleString()}</p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-lg">
+                <BarChart3 className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <p className="text-xs text-green-100 mt-2">
+              <span className="flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 +8.2%
               </span>
@@ -210,15 +222,20 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active SKUs</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalSKUs}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-blue-600 flex items-center">
+        {/* Active SKUs - Purple */}
+        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 border-0 text-white">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100 text-sm font-medium">Active SKUs</p>
+                <p className="text-3xl font-bold text-white">{totalSKUs}</p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-lg">
+                <Activity className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <p className="text-xs text-purple-100 mt-2">
+              <span className="flex items-center">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 +2 new
               </span>
@@ -227,15 +244,20 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Alert</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{lowStockItems}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-red-600 flex items-center">
+        {/* Low Stock Alert - Orange */}
+        <Card className="bg-gradient-to-br from-orange-500 to-orange-600 border-0 text-white">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-100 text-sm font-medium">Low Stock Alert</p>
+                <p className="text-3xl font-bold text-white">{lowStockItems}</p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-lg">
+                <AlertTriangle className="h-8 w-8 text-white" />
+              </div>
+            </div>
+            <p className="text-xs text-orange-100 mt-2">
+              <span className="flex items-center">
                 <TrendingDown className="h-3 w-3 mr-1" />
                 Needs attention
               </span>
