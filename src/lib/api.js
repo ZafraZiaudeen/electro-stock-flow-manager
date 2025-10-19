@@ -96,7 +96,6 @@ export const {
   useCreateProjectMutation,
   useGetAllIssuesQuery,
   useCreateIssueMutation,
-  // New hooks
   useGetAvailableInventoryByPartNumberQuery,
   useCreateOpeningStockMutation,
   useGetAllOpeningStockQuery,
