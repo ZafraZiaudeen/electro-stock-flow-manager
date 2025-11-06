@@ -58,27 +58,12 @@ export function AppSidebar({ activeItem = "dashboard" }) {
     }));
   };
 
-  // Loading state with animated afastlogo
   if (!isLoaded) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="flex aspect-square size-12 items-center justify-center rounded-lg bg-blue-600 text-white animate-pulse">
-              <Package className="size-6" />
-            </div>
-            <div className="absolute inset-0 rounded-lg bg-blue-600/30 animate-ping" />
-          </div>
-          <div className="grid text-center text-sm leading-tight">
-            <span className="truncate font-semibold text-gray-800">Inventory Pro</span>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  // Role-based permissions for navigation items
-  const userRole = user?.publicMetadata.role || "viewer"; // Default to viewer if role is undefined
+  const userRole = user?.publicMetadata?.role || "viewer"; 
+  
   const rolePermissions = {
     admin: {
       main: ["dashboard", "purchase", "grn-management", "issue", "returns", "projects", "suppliers"],
@@ -88,15 +73,15 @@ export function AppSidebar({ activeItem = "dashboard" }) {
     },
     warehouse_staff: {
       main: ["dashboard", "purchase", "grn-management", "issue", "returns", "projects", "suppliers"],
+      inventory: ["inventory-all", "inventory-low-stock", "inventory-categories", "inventory-opening"],
+      reports: ["reports-stock", "reports-purchase", "reports-issue", "reports-project"],
+      management: ["settings"], 
+    },
+    viewer: {
+      main: ["dashboard"], 
       inventory: [], 
       reports: [], 
       management: [], 
-    },
-    viewer: {
-      main: ["dashboard"],
-      inventory: [], // Viewers cannot access inventory sub-items
-      reports: ["reports-stock", "reports-purchase", "reports-issue", "reports-project"],
-      management: [], // Viewers cannot access management
     },
   };
 
@@ -108,6 +93,12 @@ export function AppSidebar({ activeItem = "dashboard" }) {
       url: "/dashboard",
       key: "dashboard",
     },
+    // {
+    //   title: "Request Warehouse Access",
+    //   icon: Users,
+    //   url: "/request-warehouse",
+    //   key: "request-upgrade",
+    // },
     {
       title: "Purchase Entry",
       icon: ShoppingCart,

@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-const BACKEND_URL = "https://electro-stockflow-be.onrender.com";
+const BACKEND_URL = "http://localhost:8000";
 
 export const api = createApi({
   reducerPath: "api",
@@ -82,6 +82,55 @@ export const api = createApi({
     getAllOpeningStock: builder.query({
       query: () => "opening-stock",
     }),
+    // User Management Endpoints
+    getAllUsers: builder.query({
+      query: () => "users",
+      providesTags: ["Users"],
+    }),
+    createUser: builder.mutation({
+      query: (userData) => ({
+        url: "users",
+        method: "POST",
+        body: userData,
+      }),
+      invalidatesTags: ["Users"],
+    }),
+    updateUserRole: builder.mutation({
+      query: ({ userId, role }) => ({
+        url: `users/${userId}`,
+        method: "PATCH",
+        body: { role },
+      }),
+      invalidatesTags: ["Users"],
+    }),
+    updateUserStatus: builder.mutation({
+      query: ({ userId, status }) => ({
+        url: `users/${userId}/status`,
+        method: "PATCH",
+        body: { status },
+      }),
+      invalidatesTags: ["Users"],
+    }),
+    deleteUser: builder.mutation({
+      query: (userId) => ({
+        url: `users/${userId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Users"],
+    }),
+    resendUserInvite: builder.mutation({
+      query: (userId) => ({
+        url: `users/${userId}/resend-invite`,
+        method: "POST",
+      }),
+    }),
+    requestUpgrade: builder.mutation({
+      query: () => ({
+        url: "users/request-upgrade",
+        method: "POST",
+      }),
+      invalidatesTags: ["Users"],
+    }),
   }),
 });
 
@@ -99,4 +148,12 @@ export const {
   useGetAvailableInventoryByPartNumberQuery,
   useCreateOpeningStockMutation,
   useGetAllOpeningStockQuery,
+  // User Management Hooks
+  useGetAllUsersQuery,
+  useCreateUserMutation,
+  useUpdateUserRoleMutation,
+  useUpdateUserStatusMutation,
+  useDeleteUserMutation,
+  useResendUserInviteMutation,
+  useRequestUpgradeMutation,
 } = api;

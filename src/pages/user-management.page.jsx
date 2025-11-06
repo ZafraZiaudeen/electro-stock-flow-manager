@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useUser } from "@clerk/clerk-react"
 import {
   Users,
   UserPlus,
@@ -16,6 +17,7 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -46,6 +48,15 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Checkbox } from "@/components/ui/checkbox"
 
+import {
+  useGetAllUsersQuery,
+  useCreateUserMutation,
+  useUpdateUserRoleMutation,
+  useUpdateUserStatusMutation,
+  useDeleteUserMutation,
+  useResendUserInviteMutation,
+} from "@/lib/api"
+
 // Mock data for users (removed Project Manager)
 const mockUsers = [
   {
@@ -63,7 +74,7 @@ const mockUsers = [
     name: "Warehouse Manager",
     email: "warehouse@inventifyflow.com",
     username: "@warehouse",
-    role: "warehouse",
+    role: "warehouse_staff",
     status: "active",
     lastLogin: "2024-05-31",
     createdAt: "2023-02-10",
@@ -80,7 +91,6 @@ const mockUsers = [
   },
 ]
 
-// Role definitions with permissions (removed Project Manager)
 const roles = [
   {
     id: "admin",
@@ -91,33 +101,42 @@ const roles = [
       "User management",
       "All operations",
       "System configuration",
+      "Inventory management",
       "Project management",
-      "Financial reports",
     ],
   },
   {
-    id: "warehouse",
-    name: "Warehouse",
+    id: "warehouse_staff",
+    name: "Warehouse Staff",
     icon: <Warehouse className="h-5 w-5" />,
     permissions: [
       "Inventory management",
       "Purchase entry",
       "Issue/Return items",
       "View reports",
-      "Barcode scanning",
-      "Stock adjustments",
+      "Project management",
+      "Stock management",
     ],
   },
   {
     id: "viewer",
     name: "Viewer",
     icon: <Eye className="h-5 w-5" />,
-    permissions: ["View inventory", "View reports", "Export data", "Read-only access"],
+    permissions: ["View dashboard only", "Read-only access"],
   },
 ]
 
 export default function UserManagement() {
-  const [users, setUsers] = useState(mockUsers)
+  const { user: currentUser } = useUser()
+  
+  // API Hooks
+  const { data: users = [], isLoading: loading, refetch } = useGetAllUsersQuery()
+  const [createUser] = useCreateUserMutation()
+  const [updateUserRole] = useUpdateUserRoleMutation()
+  const [updateUserStatus] = useUpdateUserStatusMutation()
+  const [deleteUser] = useDeleteUserMutation()
+  const [resendInvite] = useResendUserInviteMutation()
+  
   const [showAddUser, setShowAddUser] = useState(false)
   const [showEditPermissions, setShowEditPermissions] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
@@ -126,10 +145,12 @@ export default function UserManagement() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [showSuccess, setShowSuccess] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
+  const [showError, setShowError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  // Filter users
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -142,14 +163,12 @@ export default function UserManagement() {
     return matchesSearch && matchesRole && matchesStatus
   })
 
-  // Pagination settings
   const usersPerPage = 6
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage)
   const startIndex = (currentPage - 1) * usersPerPage
   const endIndex = startIndex + usersPerPage
   const currentUsers = filteredUsers.slice(startIndex, endIndex)
 
-  // New user form state
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
@@ -157,11 +176,10 @@ export default function UserManagement() {
     sendInvite: true,
   })
 
-  // Calculate user statistics
   const totalUsers = users.length
   const activeUsers = users.filter((user) => user.status === "active").length
   const adminUsers = users.filter((user) => user.role === "admin").length
-  const warehouseUsers = users.filter((user) => user.role === "warehouse").length
+  const warehouseUsers = users.filter((user) => user.role === "warehouse_staff").length
   const viewerUsers = users.filter((user) => user.role === "viewer").length
 
   const getRoleBadgeColor = (role) => {
@@ -188,37 +206,43 @@ export default function UserManagement() {
 
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.email) {
-      alert("Please fill in all required fields")
+      setErrorMessage("Please fill in all required fields")
+      setShowError(true)
+      setTimeout(() => setShowError(false), 5000)
       return
     }
 
-    const newUserId = `user_${users.length + 1}`
-    const username = `@${newUser.name.toLowerCase().replace(/\s+/g, "")}`
+    setIsProcessing(true)
+    try {
+      await createUser({
+        email: newUser.email,
+        firstName: newUser.name.split(' ')[0],
+        lastName: newUser.name.split(' ').slice(1).join(' ') || '',
+        role: newUser.role,
+        sendInvite: newUser.sendInvite,
+      }).unwrap()
 
-    const user = {
-      id: newUserId,
-      name: newUser.name,
-      email: newUser.email,
-      username: username,
-      role: newUser.role,
-      status: "active",
-      lastLogin: "Never",
-      createdAt: new Date().toISOString().split("T")[0],
+      setSuccessMessage(
+        `Invitation sent to ${newUser.email} successfully!`
+      )
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 5000)
+      refetch()
+    } catch (error) {
+      console.error('Error creating user:', error)
+      setErrorMessage(error?.data?.error || "Failed to send invitation. Please try again.")
+      setShowError(true)
+      setTimeout(() => setShowError(false), 5000)
+    } finally {
+      setIsProcessing(false)
+      setNewUser({
+        name: "",
+        email: "",
+        role: "viewer",
+        sendInvite: true,
+      })
+      setShowAddUser(false)
     }
-
-    setUsers([...users, user])
-    setNewUser({
-      name: "",
-      email: "",
-      role: "viewer",
-      sendInvite: true,
-    })
-    setShowAddUser(false)
-    setSuccessMessage(
-      `User ${newUser.name} has been added successfully${newUser.sendInvite ? " and invited via email" : ""}`,
-    )
-    setShowSuccess(true)
-    setTimeout(() => setShowSuccess(false), 5000)
   }
 
   const handleEditUser = (user) => {
@@ -226,29 +250,43 @@ export default function UserManagement() {
     setShowEditPermissions(true)
   }
 
-  const handleUpdateUserRole = (role) => {
+  const handleUpdateUserRole = async (role) => {
     if (!selectedUser) return
 
-    const updatedUsers = users.map((user) => (user.id === selectedUser.id ? { ...user, role } : user))
-    setUsers(updatedUsers)
-    setShowEditPermissions(false)
-    setSuccessMessage(`User ${selectedUser.name}'s role has been updated to ${getRoleName(role)}`)
-    setShowSuccess(true)
-    setTimeout(() => setShowSuccess(false), 5000)
+    setIsProcessing(true)
+    try {
+      await updateUserRole({ userId: selectedUser.id, role }).unwrap()
+      setSuccessMessage(`User ${selectedUser.name}'s role has been updated to ${getRoleName(role)}`)
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 5000)
+      refetch()
+    } catch (error) {
+      console.error('Error updating user role:', error)
+      setErrorMessage(error?.data?.error || "Failed to update user role. Please try again.")
+      setShowError(true)
+      setTimeout(() => setShowError(false), 5000)
+    } finally {
+      setShowEditPermissions(false)
+      setIsProcessing(false)
+    }
   }
 
-  const handleToggleUserStatus = (userId) => {
-    const updatedUsers = users.map((user) =>
-      user.id === userId ? { ...user, status: user.status === "active" ? "inactive" : "active" } : user,
-    )
-
+  const handleToggleUserStatus = async (userId) => {
     const targetUser = users.find((user) => user.id === userId)
     const newStatus = targetUser.status === "active" ? "inactive" : "active"
 
-    setUsers(updatedUsers)
-    setSuccessMessage(`User ${targetUser.name} has been ${newStatus === "active" ? "activated" : "deactivated"}`)
-    setShowSuccess(true)
-    setTimeout(() => setShowSuccess(false), 5000)
+    try {
+      await updateUserStatus({ userId, status: newStatus }).unwrap()
+      setSuccessMessage(`User ${targetUser.name} has been ${newStatus === "active" ? "activated" : "deactivated"}`)
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 5000)
+      refetch()
+    } catch (error) {
+      console.error('Error toggling user status:', error)
+      setErrorMessage(error?.data?.error || "Failed to update user status. Please try again.")
+      setShowError(true)
+      setTimeout(() => setShowError(false), 5000)
+    }
   }
 
   const handleDeleteUser = (user) => {
@@ -256,33 +294,70 @@ export default function UserManagement() {
     setShowDeleteConfirm(true)
   }
 
-  const confirmDeleteUser = () => {
+  const confirmDeleteUser = async () => {
     if (!selectedUser) return
 
-    setUsers(users.filter((user) => user.id !== selectedUser.id))
-    setShowDeleteConfirm(false)
-    setSuccessMessage(`User ${selectedUser.name} has been deleted`)
-    setShowSuccess(true)
-    setTimeout(() => setShowSuccess(false), 5000)
+    setIsProcessing(true)
+    try {
+      await deleteUser(selectedUser.id).unwrap()
+      setSuccessMessage(`User ${selectedUser.name} has been deleted`)
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 5000)
+      refetch()
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      setErrorMessage(error?.data?.error || "Failed to delete user. Please try again.")
+      setShowError(true)
+      setTimeout(() => setShowError(false), 5000)
+    } finally {
+      setShowDeleteConfirm(false)
+      setIsProcessing(false)
+    }
   }
 
-  const handleResendInvite = (user) => {
-    setSuccessMessage(`Invitation has been resent to ${user.email}`)
-    setShowSuccess(true)
-    setTimeout(() => setShowSuccess(false), 5000)
+  const handleResendInvite = async (user) => {
+    try {
+      await resendInvite(user.id).unwrap()
+      setSuccessMessage(`Invitation has been resent to ${user.email}`)
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 5000)
+    } catch (error) {
+      console.error('Error resending invite:', error)
+      setErrorMessage(error?.data?.error || "Failed to resend invitation. Please try again.")
+      setShowError(true)
+      setTimeout(() => setShowError(false), 5000)
+    }
   }
 
   const handlePageChange = (page) => {
     setCurrentPage(page)
   }
 
+  if (loading) {
+    return (
+      <main className="flex-1 overflow-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="flex-1 overflow-auto p-6">
       {/* Success Alert */}
       {showSuccess && (
-        <Alert className="border-green-200 bg-green-50">
+        <Alert className="mb-4 border-green-200 bg-green-50">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Error Alert */}
+      {showError && (
+        <Alert className="mb-4 border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">{errorMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -627,12 +702,25 @@ export default function UserManagement() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddUser(false)}>
+            <Button variant="outline" onClick={() => setShowAddUser(false)} disabled={isProcessing}>
               Cancel
             </Button>
-            <Button onClick={handleAddUser} className="bg-blue-600 hover:bg-blue-700">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add User
+            <Button
+              onClick={handleAddUser}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add User
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -686,8 +774,12 @@ export default function UserManagement() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditPermissions(false)}>
-              Cancel
+            <Button
+              variant="outline"
+              onClick={() => setShowEditPermissions(false)}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Processing..." : "Close"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -715,12 +807,29 @@ export default function UserManagement() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isProcessing}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDeleteUser}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete User
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteUser}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete User
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

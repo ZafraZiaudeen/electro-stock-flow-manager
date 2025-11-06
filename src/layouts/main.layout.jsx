@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@clerk/clerk-react";
 
 const pageTitles = {
+  "/request-warehouse": "Request Warehouse Access",
   "/dashboard": "Dashboard",
   "/purchase-entry": "Purchase Entry",
   "/inventory/opening-stock": "Opening Stock",
@@ -23,10 +24,8 @@ export default function MainLayout() {
 
   const pageTitle = pageTitles[pathname] || "Inventory Pro";
 
-  if (!isLoaded) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
-  }
-
+  // Parent layout (ProtectedLayout) already handles isLoaded check
+  // This prevents cascading loaders and blinking
   const userName = user?.fullName || user?.firstName || "Admin User";
   const userInitials = userName
     .split(" ")

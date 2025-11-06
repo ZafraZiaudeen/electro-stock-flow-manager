@@ -24,8 +24,11 @@ export default function HomePage() {
     );
   }
 
-  // Redirect admins to dashboard
-  if (isSignedIn && user?.publicMetadata.role === "admin") {
+  if (isSignedIn && user?.publicMetadata?.role) {
+    const role = user.publicMetadata.role;
+    if (role === 'viewer') {
+      return <Navigate to="/dashboard" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
